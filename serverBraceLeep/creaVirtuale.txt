@@ -1,0 +1,20 @@
+mkdir server
+cd server
+
+3️⃣ Crea l’ambiente virtuale
+python3 -m venv venv
+
+
+Struttura:
+
+server/
+ ├── venv/
+ └── server.py
+
+4️⃣ Attiva il virtualenv
+source venv/bin/activate
+
+
+Vedrai qualcosa tipo:
+
+(venv) user@pc:~/server$

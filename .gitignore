@@ -1,0 +1,30 @@
+# Cartelle pesanti (Node.js e Electron)
+node_modules/
+**/node_modules/
+
+# Ambiente virtuale Python (Flask)
+venv/
+.venv/
+env/
+bin/
+lib/
+include/
+pyvenv.cfg
+
+# File compressi giganti (Quelli che ti danno l'errore)
+*.zip
+*.tar.gz
+*.rar
+
+# File di distribuzione/eseguibili di Electron
+dist/
+out/
+
+# File di sistema e log
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Credenziali (Opzionale ma consigliato)
+.env
