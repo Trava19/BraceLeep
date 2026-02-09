@@ -57,7 +57,7 @@ function showSuccess(msg) {
 // Funzione login completa
 async function login() {
   const email = document.getElementById('email').value.trim();
-  const pw = document.getElementById('pw').value.trim();
+  const pw = document.getElementById('pw').value;
 
   if (!email || !pw) {
     showError('Compila tutti i campi');
@@ -65,7 +65,7 @@ async function login() {
   }
 
   try {
-    const res = await fetch('http://127.0.0.1:5000/login', {
+    const res = await fetch('https://127.0.0.1:5000/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pw })
@@ -99,7 +99,7 @@ async function register() {
   const firstName = document.getElementById('regFirstName').value.trim();
   const lastName = document.getElementById('regLastName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
-  const password = document.getElementById('regPassword').value.trim();
+  const password = document.getElementById('regPassword').value;
   const confirm = document.getElementById('regPasswordConfirm').value.trim();
   const termsAccepted = document.getElementById('regTerms').checked;
 
@@ -157,7 +157,7 @@ async function register() {
 
 
   try {
-    const res = await fetch('http://127.0.0.1:5000/register', {
+    const res = await fetch('https://127.0.0.1:5000/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -855,9 +855,9 @@ function saveSettings() {
 }
 
 async function changePassword() {
-  const oldPw = document.getElementById('oldPw').value.trim();
-  const newPw = document.getElementById('newPw').value.trim();
-  const confirmPw = document.getElementById('confirmPw').value.trim();
+  const oldPw = document.getElementById('oldPw').value;
+  const newPw = document.getElementById('newPw').value;
+  const confirmPw = document.getElementById('confirmPw').value;
 
   const userEmail = window.loggedUserEmail;
 
@@ -872,7 +872,7 @@ async function changePassword() {
   }
 
   try {
-    const res = await fetch('http://127.0.0.1:5000/change-password', {
+    const res = await fetch('https://127.0.0.1:5000/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -968,7 +968,7 @@ async function salvaProfilo() {
   }
 
   try {
-    const res = await fetch('http://127.0.0.1:5000/changeProfile', {
+    const res = await fetch('https://127.0.0.1:5000/changeProfile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1009,7 +1009,7 @@ async function caricaProfilo(){
   successBox.style.display = 'none';
 
   try {
-    const res = await fetch('http://127.0.0.1:5000/caricaProfilo', {
+    const res = await fetch('https://127.0.0.1:5000/caricaProfilo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1052,7 +1052,7 @@ async function clearAllData() {
     successBox.style.display = 'none';
 
     try{
-      const res = await fetch('http://127.0.0.1:5000/clearAllData', {
+      const res = await fetch('https://127.0.0.1:5000/clearAllData', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
