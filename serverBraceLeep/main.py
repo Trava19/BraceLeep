@@ -1,9 +1,17 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 import mysql.connector
 import bcrypt
 import re
 
 app = Flask(__name__)
+app.secret_key ="831010ba9bd447d1502a480b6f78b8183c4112e2b45314d1e978cb7629aa19b3"
+
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="None"
+)
+
 
 db = mysql.connector.connect(
     host="localhost",
@@ -17,6 +25,7 @@ db = mysql.connector.connect(
 def login():
     data = request.json
     email = data["email"]
+    session["email"] = email
     password = data["password"]
     #print(email, password)
     
@@ -86,7 +95,7 @@ def register():
 def change_password():
     data = request.json or {}
 
-    email = data.get("email")
+    email = session.get("email")
     old_pw = data.get("oldPw")
     new_pw = data.get("newPw")
 
@@ -118,7 +127,7 @@ def change_password():
 def change_profile():
     data = request.json or {}
 
-    email = data.get("email")
+    email = session.get("email")
     nomeCompleto = data.get("nome_completo")
     eta = data.get("eta")
     genere = data.get("genere")
@@ -167,7 +176,9 @@ def change_profile():
 def carica_profile():
     data = request.json or {}
 
-    email = data.get("email")
+
+
+    email = session.get("email") 
 
     if not email:
         return jsonify(success=False, message="Dati mancanti")
@@ -192,10 +203,10 @@ def carica_profile():
 
     return jsonify(success=True, profile=profile_data)
 
-@app.route("/clearAllData", methods=["POST"])
+@app.route("/clearAllData", methods=["GET"])
 def clearAllData():
-    data = request.json or {}
-    email = data.get("email")
+
+    email = session.get("email")
 
     if not email:
         return jsonify(success=False, message="Dati mancanti")
@@ -205,6 +216,13 @@ def clearAllData():
     db.commit()
 
     return jsonify(success=True, message="Tutti i dati sono stati cancellati")
+
+
+# ================= LOGOUT =================
+@app.route("/logout", methods=["GET"])
+def logout():
+    session.clear()
+    return jsonify(success=True, message="Logout effettuato")
          
 
 

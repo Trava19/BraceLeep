@@ -98,9 +98,8 @@ async function login() {
 async function register() {
   const firstName = document.getElementById('regFirstName').value.trim();
   const lastName = document.getElementById('regLastName').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
-  const confirm = document.getElementById('regPasswordConfirm').value.trim();
+  const confirm = document.getElementById('regPasswordConfirm').value;
   const termsAccepted = document.getElementById('regTerms').checked;
 
   if (!termsAccepted) {
@@ -159,11 +158,11 @@ async function register() {
   try {
     const res = await fetch('https://127.0.0.1:5000/register', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nome: firstName,      // <-- cambiato da first_name
         cognome: lastName,    // <-- cambiato da last_name
-        email: email,
         password: password
       })
     });
@@ -708,12 +707,7 @@ function showLoginError(msg) {
     currentSection = section;
   }
 
-  function logout() {
-    if (confirm('Sei sicuro di voler uscire?')) {
-      // Ricarica la pagina per resettare lo stato
-      location.reload();
-    }
-  }
+
 
   // ==================== GESTIONE PROFILO ====================
 
@@ -918,7 +912,6 @@ function showPwMsg(text, type) {
 }
 
 async function salvaProfilo() {
-  const userEmail = window.loggedUserEmail;
   const fullName = document.getElementById('fullName').value.trim();
   const age = parseInt(document.getElementById('age').value.trim());
   const gender = document.getElementById('gender').value;
@@ -970,9 +963,9 @@ async function salvaProfilo() {
   try {
     const res = await fetch('https://127.0.0.1:5000/changeProfile', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: userEmail,
         nome_completo: fullName,
         eta: age,
         genere: gender,
@@ -1011,6 +1004,7 @@ async function caricaProfilo(){
   try {
     const res = await fetch('https://127.0.0.1:5000/caricaProfilo', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: userEmail
@@ -1045,7 +1039,7 @@ async function clearAllData() {
   if (confirm('Sei sicuro di voler cancellare tutti i dati?')) {
       // Ricarica la pagina per resettare lo stato
     
-    const userEmail = window.loggedUserEmail;
+    
     const successBox = document.getElementById('profileSuccess');
     const errorBox = document.getElementById('registerError');
     errorBox.style.display = 'none';
@@ -1053,11 +1047,9 @@ async function clearAllData() {
 
     try{
       const res = await fetch('https://127.0.0.1:5000/clearAllData', {
-        method: 'POST',
+        method: 'GET',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail
-        })
       });
 
       const result = await res.json();
@@ -1075,6 +1067,33 @@ async function clearAllData() {
   }
 }
 
-function ricarica(){
-  location.reload();
-}
+
+
+ async function logout() {
+    if (confirm('Sei sicuro di voler uscire?')) {
+      // Ricarica la pagina per resettare lo stato
+      try{
+        const res = await fetch('https://127.0.0.1:5000/logout', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        successBox.style.display = 'block';
+        ricarica();
+      }else{
+        errorBox.textContent = "Errore";
+        errorBox.style.display = 'block';
+      }
+    }catch(err){
+
+    }
+    }
+  }
+
+  function ricarica(){
+    location.reload();
+  }
