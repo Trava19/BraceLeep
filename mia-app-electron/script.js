@@ -1070,6 +1070,7 @@ async function clearAllData() {
 
 
  async function logout() {
+
     if (confirm('Sei sicuro di voler uscire?')) {
       // Ricarica la pagina per resettare lo stato
       try{
@@ -1082,14 +1083,15 @@ async function clearAllData() {
       const result = await res.json();
 
       if (result.success) {
-        successBox.style.display = 'block';
-        ricarica();
+        
+        console.log('Logout effettuato');
+        location.reload();
       }else{
-        errorBox.textContent = "Errore";
-        errorBox.style.display = 'block';
+
+        console.log('Errore durante il logout:', result.message);
       }
     }catch(err){
-
+      console.log('Errore durante il logout:', err);
     }
     }
   }
