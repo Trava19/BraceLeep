@@ -2,9 +2,12 @@ from flask import Flask, request, jsonify, session
 import mysql.connector
 import bcrypt
 import re
+from flask_cors import CORS
 
 app = Flask(__name__)
 app.secret_key ="831010ba9bd447d1502a480b6f78b8183c4112e2b45314d1e978cb7629aa19b3"
+
+CORS(app, supports_credentials=True, origins=["*"])
 
 app.config.update(
     SESSION_COOKIE_SECURE=True,
