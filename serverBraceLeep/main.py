@@ -30,15 +30,12 @@ def login():
     email = data["email"]
     session["email"] = email
     password = data["password"]
-    #print(email, password)
+    
     
     cur = db.cursor(dictionary=True)
     cur.execute("SELECT * FROM utenti WHERE email = %s", (email,))
     user = cur.fetchone()
 
-    #print("password:", password)
-    #print("hash dal db:", repr(user["password"]))
-    #print("tipo hash:", type(user["password"]))
 
     if not user:
         return jsonify(success=False, message="Credenziali non valide email")
@@ -62,7 +59,7 @@ def register():
     nome = data.get("nome", "").strip()
     cognome = data.get("cognome", "").strip()
     email = data.get("email", "").strip()
-    password = data.get("password", "").strip()
+    password = data.get("password")
 
     # Controllo campi obbligatori
     if not nome or not cognome or not email or not password:

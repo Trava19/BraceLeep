@@ -55,135 +55,6 @@ function showSuccess(msg) {
 }
 
 // Funzione login completa
-async function login() {
-  const email = document.getElementById('email').value.trim();
-  const pw = document.getElementById('pw').value;
-
-  if (!email || !pw) {
-    showError('Compila tutti i campi');
-    return;
-  }
-
-  try {
-    const res = await fetch('https://127.0.0.1:5000/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pw })
-    });
-
-    const result = await res.json();
-
-    if (result.success) {
-      // Salva email utente
-      window.loggedUserEmail = result.email;
-
-      // Aggiorna UI: nasconde login e mostra app
-      document.getElementById('loginBox').style.display = 'none';
-      document.getElementById('appScreen').style.display = 'block';
-
-      // Aggiorna utente nella UI
-      document.getElementById('userName').textContent = result.email;
-
-      showSuccess('Accesso effettuato!');
-    } else {
-      showError(result.message);
-    }
-  } catch (err) {
-    showError('Errore di connessione al server');
-  }
-
-  caricaProfilo();
-}
-
-async function register() {
-  const firstName = document.getElementById('regFirstName').value.trim();
-  const lastName = document.getElementById('regLastName').value.trim();
-  const password = document.getElementById('regPassword').value;
-  const confirm = document.getElementById('regPasswordConfirm').value;
-  const termsAccepted = document.getElementById('regTerms').checked;
-
-  if (!termsAccepted) {
-    const errorBox = document.getElementById('registerError');
-    errorBox.textContent = "Devi accettare i termini e condizioni";
-    errorBox.style.display = 'block';
-    return;
-  }
-
-  const errorBox = document.getElementById('registerError');
-  const successBox = document.getElementById('registerSuccess');
-
-  // Reset messaggi
-  errorBox.style.display = 'none';
-  successBox.style.display = 'none';
-
-  // Validazione campi obbligatori
-  if (!firstName || !lastName || !email || !password || !confirm) {
-    errorBox.textContent = "Compila tutti i campi";
-    errorBox.style.display = 'block';
-    return;
-  }
-
-  if (password !== confirm) {
-    errorBox.textContent = "Le password non coincidono";
-    errorBox.style.display = 'block';
-    return;
-  }
-
-  if(firstName.length > 20){
-    errorBox.textContent = "Il nome è troppo lungo (max 20 caratteri)";
-    errorBox.style.display = 'block';
-    return;
-  }
-
-  if(lastName.length > 20){
-    errorBox.textContent = "Il cognome è troppo lungo (max 20 caratteri)";
-    errorBox.style.display = 'block';
-    return;
-  }
-
-  if(email.length > 50){
-    errorBox.textContent = "L'email è troppo lunga (max 50 caratteri)";
-    errorBox.style.display = 'block';
-    return;
-  }
-
-  if(password.length > 255){
-    errorBox.textContent = "La password è troppo lunga (max 255 caratteri)";
-    errorBox.style.display = 'block';
-    return;
-  }
-
-
-
-  try {
-    const res = await fetch('https://127.0.0.1:5000/register', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        nome: firstName,      // <-- cambiato da first_name
-        cognome: lastName,    // <-- cambiato da last_name
-        password: password
-      })
-    });
-
-    const result = await res.json();
-
-    if (result.success) {
-      successBox.style.display = 'block';
-      setTimeout(() => {
-        ricarica();
-      }, 5000);
-    } else {
-      errorBox.textContent = result.message;
-      errorBox.style.display = 'block';
-    }
-  } catch (err) {
-    errorBox.textContent = "Errore di connessione al server";
-    errorBox.style.display = 'block';
-  }
-}
-
 
 // Mostra form di registrazione
 // Mostra schermata di registrazione
@@ -711,6 +582,8 @@ function showLoginError(msg) {
 
   // ==================== GESTIONE PROFILO ====================
 
+
+  //TODO : togli la funzione che tanto c'è già quella giusta
   function loadProfile() {
     const saved = localStorage.getItem('braceleep_profile');
     if (saved) {
@@ -729,6 +602,8 @@ function showLoginError(msg) {
       updateProfileStats();
     }
   }
+
+  //TODO : togli la funzione che tanto c'è già quella giusta
 
   function saveProfile(event) {
     event.preventDefault();
@@ -755,6 +630,8 @@ function showLoginError(msg) {
       successMsg.style.display = 'none';
     }, 3000);
   }
+
+  //TODO : non so se questa funzione potrà essermi utile per fare i garfici
 
   function updateProfileStats() {
     const { weight, height, age, sleepGoal, activityLevel } = userProfile;
@@ -848,6 +725,143 @@ function saveSettings() {
   }, 3000);
 }
 
+// ==================== CHIAMATE ALLE API ====================
+
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const pw = document.getElementById('pw').value;
+
+  if (!email || !pw) {
+    showError('Compila tutti i campi');
+    return;
+  }
+
+  try {
+    const res = await fetch('https://127.0.0.1:5000/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw })
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+      // Salva email utente
+      window.loggedUserEmail = result.email;
+
+      // Aggiorna UI: nasconde login e mostra app
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+
+      // Aggiorna utente nella UI
+      document.getElementById('userName').textContent = result.email;
+
+      showSuccess('Accesso effettuato!');
+    } else {
+      showError(result.message);
+    }
+  } catch (err) {
+    showError('Errore di connessione al server');
+  }
+
+  caricaProfilo();
+}
+
+// 
+
+async function register() {
+  const firstName = document.getElementById('regFirstName').value.trim();
+  const lastName = document.getElementById('regLastName').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const confirm = document.getElementById('regPasswordConfirm').value;
+  const termsAccepted = document.getElementById('regTerms').checked;
+  const email = document.getElementById('regEmail').value.trim(); 
+
+  if (!termsAccepted) {
+    const errorBox = document.getElementById('registerError');
+    errorBox.textContent = "Devi accettare i termini e condizioni";
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  const errorBox = document.getElementById('registerError');
+  const successBox = document.getElementById('registerSuccess');
+
+  // Reset messaggi
+  errorBox.style.display = 'none';
+  successBox.style.display = 'none';
+
+  // Validazione campi obbligatori
+  if (!firstName || !lastName || !email || !password || !confirm) {
+    errorBox.textContent = "Compila tutti i campi";
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  if (password !== confirm) {
+    errorBox.textContent = "Le password non coincidono";
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  if(firstName.length > 20){
+    errorBox.textContent = "Il nome è troppo lungo (max 20 caratteri)";
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  if(lastName.length > 20){
+    errorBox.textContent = "Il cognome è troppo lungo (max 20 caratteri)";
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  if(email.length > 50){
+    errorBox.textContent = "L'email è troppo lunga (max 50 caratteri)";
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  if(password.length > 255){
+    errorBox.textContent = "La password è troppo lunga (max 255 caratteri)";
+    errorBox.style.display = 'block';
+    return;
+  }
+
+
+
+  try {
+    const res = await fetch('https://127.0.0.1:5000/register', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        nome: firstName,      // <-- cambiato da first_name
+        cognome: lastName,    // <-- cambiato da last_name
+        password: password
+      })
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+      successBox.style.display = 'block';
+      setTimeout(() => {
+        ricarica();
+      }, 5000);
+    } else {
+      errorBox.textContent = result.message;
+      errorBox.style.display = 'block';
+    }
+  } catch (err) {
+    errorBox.textContent = "Errore di connessione al server";
+    errorBox.style.display = 'block';
+  }
+}
+
+
+
 async function changePassword() {
   const oldPw = document.getElementById('oldPw').value;
   const newPw = document.getElementById('newPw').value;
@@ -910,6 +924,8 @@ function showPwMsg(text, type) {
     box.style.display = 'none';
   }, 3000);
 }
+
+
 
 async function salvaProfilo() {
   const fullName = document.getElementById('fullName').value.trim();
