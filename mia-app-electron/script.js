@@ -1,5 +1,33 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// ==================== DATI CSV (embedded per test grafico) ====================
+// Originariamente i dati verrebbero dal server/braccialetto
+const CSV_DATA = [
+  { giorno: 'Lun', TST: 7.5, WASO: 0.6, SE: 88, risvegli: 3, DAW: 0.5, MI: 12, AI: 18 },
+  { giorno: 'Mar', TST: 6.8, WASO: 0.9, SE: 82, risvegli: 5, DAW: 0.7, MI: 18, AI: 25 },
+  { giorno: 'Mer', TST: 8.0, WASO: 0.4, SE: 92, risvegli: 2, DAW: 0.3, MI: 10, AI: 15 },
+  { giorno: 'Gio', TST: 7.2, WASO: 0.7, SE: 85, risvegli: 4, DAW: 0.6, MI: 14, AI: 20 },
+  { giorno: 'Ven', TST: 6.5, WASO: 1.1, SE: 78, risvegli: 6, DAW: 0.9, MI: 22, AI: 30 },
+  { giorno: 'Sab', TST: 7.9, WASO: 0.5, SE: 90, risvegli: 3, DAW: 0.4, MI: 11, AI: 16 },
+  { giorno: 'Dom', TST: 8.2, WASO: 0.3, SE: 94, risvegli: 1, DAW: 0.2, MI:  8, AI: 12 },
+
+  
+];
+
+let seChart = null;
+let wasoChart = null;
+const chartRegistry = {};
+
+const LAST_NIGHT = CSV_DATA[6]; // Ultima notte = Domenica
+
+const AVG_TST  = CSV_DATA.reduce((s, d) => s + d.TST, 0) / CSV_DATA.length;
+const AVG_SE   = Math.round(CSV_DATA.reduce((s, d) => s + d.SE,  0) / CSV_DATA.length);
+const AVG_WASO = CSV_DATA.reduce((s, d) => s + d.WASO, 0) / CSV_DATA.length;
+const AVG_RISV = (CSV_DATA.reduce((s, d) => s + d.risvegli, 0) / CSV_DATA.length).toFixed(1);
+const QUALITY_SCORE = AVG_SE;
+
   // Variabili globali
   let bleDevice = null;
   let bleServer = null;
@@ -431,7 +459,7 @@ function showLoginError(msg) {
       msg.remove();
     }
   }
-
+/*
   function createLine(){
     const canvas = document.getElementById('sleepLine');
     const ctx = canvas.getContext('2d');
@@ -554,7 +582,7 @@ function showLoginError(msg) {
     
     // Mostra messaggio se non ci sono dati
     showEmptyChartMessage('weekTrend', 'Connetti il braccialetto per visualizzare i dati');
-  }
+  }*/
 
   // ==================== GESTIONE MENU ====================
 
@@ -755,6 +783,8 @@ async function login() {
 
       // Aggiorna utente nella UI
       document.getElementById('userName').textContent = result.email;
+
+      initAppWithData(result.profile);
 
       showSuccess('Accesso effettuato!');
     } else {
@@ -1115,3 +1145,434 @@ async function clearAllData() {
   function ricarica(){
     location.reload();
   }
+
+
+  // PARTE GRAFICA
+
+function hm(decimal) {
+  const totalMin = Math.round(decimal * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}`;
+}
+
+function calcStages(night) {
+  const awake = Math.min(night.DAW, night.TST * 0.12);         // max 12% del TST
+  const deepFrac  = Math.min(0.28, Math.max(0.12, 0.35 - (night.MI / 100) * 0.50));
+  const remFrac   = Math.min(0.25, Math.max(0.15, 0.25 - (night.AI / 60)  * 0.15));
+  const deep  = deepFrac  * (night.TST - awake);
+  const rem   = remFrac   * (night.TST - awake);
+  const light = night.TST - awake - deep - rem;
+  return { awake, deep, rem, light };
+}
+
+function updateSleepStages(night) {
+  const { awake, deep, rem, light } = calcStages(night);
+  const total = night.TST;
+
+  // Percentuali reali su TST
+  const pct = v => Math.round((v / total) * 100);
+  const pDeep  = pct(deep);
+  const pLight = pct(light);
+  const pRem   = pct(rem);
+  const pAwake = pct(awake);
+
+
+  document.getElementById('stageDeep').style.height  = pDeep  + '%';
+  document.getElementById('stageLight').style.height = pLight + '%';
+  document.getElementById('stageRem').style.height   = pRem   + '%';
+  document.getElementById('stageAwake').style.height = Math.max(6, pAwake) + '%';
+
+  // % sopra ogni barra
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('stageDeepPctLeg',  pDeep  + '%');
+  set('stageLightPctLeg', pLight + '%');
+  set('stageRemPctLeg',   pRem   + '%');
+  set('stageAwakePctLeg', pAwake + '%');
+
+  // Valori card sotto
+  set('stageDeepH',  hm(deep));
+  set('stageLightH', hm(light));
+  set('stageRemH',   hm(rem));
+  set('stageAwakeM', hm(awake));
+}
+
+function updateInsight() {
+  const el = document.getElementById('insightText');
+  if (!el) return;
+  const weekBest = CSV_DATA.reduce((best, d) => d.SE > best.SE ? d : best, CSV_DATA[0]);
+  el.innerHTML = `Efficienza media settimanale: <strong>${AVG_SE}%</strong> — miglior notte: <strong>${weekBest.giorno}</strong> (${weekBest.SE}%). Risvegli medi per notte: <strong>${AVG_RISV}</strong>. Tempo medio sveglio (WASO): <strong>${hm(AVG_WASO)}</strong>. ${AVG_SE < 85 ? 'Prova a mantenere orari più regolari e riduci l\'uso di schermi prima di dormire.' : 'Continua così! Il tuo sonno è nella fascia ottimale.'}`;
+}
+
+function initAppWithData() {
+  // Dati real-time (simulati dall'ultima notte)
+  document.getElementById('realtimeQuality').textContent = LAST_NIGHT.SE + '%';
+  document.getElementById('realtimeHR').innerHTML = '58<span style="font-size:16px">BPM</span>';
+  document.getElementById('realtimeMovement').textContent = LAST_NIGHT.MI + '%';
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('it-IT');
+  updateBatteryLevel(72);
+
+  // Obiettivi card
+  const objSleep = document.getElementById('objSleep');
+  const objImpr  = document.getElementById('objImprovement');
+  if (objSleep) objSleep.textContent = hm(AVG_TST);
+  if (objImpr)  objImpr.textContent  = '+' + (LAST_NIGHT.SE - CSV_DATA[0].SE) + '%';
+
+  // Analytics header
+  document.getElementById('avgQualityScore').textContent = QUALITY_SCORE;
+  document.getElementById('avgSleepTime').textContent    = hm(AVG_TST);       // media TST settimanale
+  const lastNightEl = document.getElementById('lastNightTST');
+  if (lastNightEl) lastNightEl.textContent = hm(LAST_NIGHT.TST);
+  document.getElementById('sleepEfficiency').textContent = hm(AVG_WASO);     // WASO medio (ore sveglio)
+
+  const qi = document.getElementById('overallQuality');
+  if (AVG_SE >= 90)      { qi.textContent = 'Ottima';        qi.style.color = '#22c55e'; }
+  else if (AVG_SE >= 80) { qi.textContent = 'Buona';         qi.style.color = '#38bdf8'; }
+  else                   { qi.textContent = 'Da migliorare'; qi.style.color = '#f59e0b'; }
+
+  // Aggiorna label WASO card
+  const wasoLabel = document.querySelector('#sleepEfficiency')?.closest('.card')?.querySelector('.small');
+  // già impostato via HTML
+
+  updateSleepStages(LAST_NIGHT);
+  updateInsight();
+
+  createLine();
+  createTrend();
+  createAnalyticsCharts();
+
+  caricaProfilo();
+  loadSettings();
+}
+
+function toggleTrendDataset(pill, dsIdx) {
+  // Trova il canvas associato al gruppo di pills del genitore
+  const pillsGroup = pill.closest('.chart-pills');
+  const canvasId   = pill.dataset.chart;
+  const chart      = chartRegistry[canvasId];
+  if (!chart) return;
+
+  const isActive = pill.classList.contains('active');
+
+  // Impedisci di nascondere tutti e due (almeno uno deve restare visibile)
+  const pills = pillsGroup.querySelectorAll('.chart-pill');
+  const activeCount = [...pills].filter(p => p.classList.contains('active')).length;
+  if (isActive && activeCount <= 1) return;
+
+  // Toggle stato pill
+  pill.classList.toggle('active', !isActive);
+
+  // Nasconde/mostra il dataset — 'none' evita l'animazione che causa il freeze
+  chart.setDatasetVisibility(dsIdx, !isActive);
+  chart.update('none');
+}
+
+
+// ANALYTICS – grafici aggiuntivi
+function createAnalyticsCharts() {
+
+  // ── Trend settimanale analytics (bar ore + linea SE%) ──
+  const ctxATrend = document.getElementById('analyticsWeekTrend');
+  if (ctxATrend) {
+    const colors = CSV_DATA.map(d => d.TST >= 7.5 ? 'rgba(52,211,153,0.9)' : d.TST >= 7 ? 'rgba(56,189,248,0.85)' : 'rgba(248,113,113,0.85)');
+    new Chart(ctxATrend, {
+      type: 'bar',
+      data: {
+        labels: CSV_DATA.map(d => d.giorno),
+        datasets: [
+          {
+            label: 'Ore di sonno',
+            data: CSV_DATA.map(d => d.TST),
+            backgroundColor: colors,
+            borderRadius: 6, borderSkipped: false, yAxisID: 'yH'
+          },
+          {
+            label: 'Efficienza (%)',
+            data: CSV_DATA.map(d => d.SE),
+            type: 'line',
+            borderColor: '#a78bfa', borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: CSV_DATA.map(d => d.SE >= 90 ? '#22c55e' : d.SE >= 80 ? '#a78bfa' : '#f59e0b'),
+            pointBorderWidth: 0,
+            fill: false, tension: 0.4, yAxisID: 'ySE2'
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(148,163,184,0.4)',
+            borderWidth: 1, padding: 10,
+            filter: item => item.datasetIndex !== 1,
+            callbacks: {
+              label: ctx => ctx.datasetIndex === 0
+                ? `  Ore: ${hm(ctx.parsed.y)}`
+                : `  Efficienza: ${ctx.parsed.y}%`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: 'rgba(226,232,240,0.7)', font: { size: 11 } } },
+          yH: {
+            type: 'linear', position: 'left', min: 5, max: 10,
+            grid: { color: 'rgba(148,163,184,0.12)', drawBorder: false },
+            ticks: { color: 'rgba(52,211,153,0.8)', callback: v => v + 'h', stepSize: 1 }
+          },
+          ySE2: {
+            type: 'linear', position: 'right', min: 60, max: 100,
+            grid: { display: false },
+            ticks: { color: 'rgba(167,139,250,0.8)', callback: v => v + '%' }
+          }
+        }
+      }
+    });
+    chartRegistry['analyticsWeekTrend'] = Chart.getChart(ctxATrend);
+  }
+
+  // Radar efficienza settimanale
+  const ctxSE = document.getElementById('analyticsSeChart');
+  if (ctxSE) {
+    if (seChart) seChart.destroy();
+    seChart = new Chart(ctxSE, {
+      type: 'radar',
+      data: {
+        labels: CSV_DATA.map(d => d.giorno),
+        datasets: [{
+          label: 'Efficienza (%)',
+          data: CSV_DATA.map(d => d.SE),
+          backgroundColor: 'rgba(99,102,241,0.2)',
+          borderColor: '#6366f1', borderWidth: 2,
+          pointBackgroundColor: '#38bdf8', pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            min: 60, max: 100,
+            grid: { color: 'rgba(148,163,184,0.15)' },
+            angleLines: { color: 'rgba(148,163,184,0.15)' },
+            pointLabels: { color: 'rgba(226,232,240,0.8)', font: { size: 12 } },
+            ticks: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // Bar WASO + risvegli
+  const ctxWASO = document.getElementById('analyticsWasoChart');
+  if (ctxWASO) {
+    if (wasoChart) wasoChart.destroy();
+    wasoChart = new Chart(ctxWASO, {
+      type: 'bar',
+      data: {
+        labels: CSV_DATA.map(d => d.giorno),
+        datasets: [
+          {
+            label: 'WASO (ore svegli)',
+            data: CSV_DATA.map(d => d.WASO),
+            backgroundColor: CSV_DATA.map(d => d.WASO <= 0.4 ? 'rgba(52,211,153,0.8)' : d.WASO <= 0.7 ? 'rgba(251,191,36,0.8)' : 'rgba(248,113,113,0.8)'),
+            borderRadius: 6, borderSkipped: false
+          },
+          {
+            label: 'N° Risvegli (÷10)',
+            data: CSV_DATA.map(d => d.risvegli * 0.1),
+            backgroundColor: 'rgba(168,85,247,0.5)',
+            borderRadius: 4, borderSkipped: false
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, labels: { color: 'rgba(226,232,240,0.7)', font: { size: 11 }, boxWidth: 12 } },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(148,163,184,0.4)',
+            borderWidth: 1, padding: 10,
+            callbacks: {
+              label: ctx => ctx.datasetIndex === 0 ? `WASO: ${ctx.parsed.y}h` : `Risvegli: ${CSV_DATA[ctx.dataIndex].risvegli}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: 'rgba(226,232,240,0.7)', font: { size: 11 } } },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(148,163,184,0.15)', drawBorder: false },
+            ticks: { color: 'rgba(148,163,184,0.8)', callback: v => v + 'h' }
+          }
+        }
+      }
+    });
+  }
+}
+
+function createTrend() {
+  const el = document.getElementById('weekTrend');
+  if (!el) return;
+  const colors = CSV_DATA.map(d => d.TST >= 7.5 ? 'rgba(52,211,153,0.9)' : d.TST >= 7 ? 'rgba(56,189,248,0.85)' : 'rgba(248,113,113,0.85)');
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: CSV_DATA.map(d => d.giorno),
+      datasets: [
+        {
+          label: 'Ore di sonno',
+          data: CSV_DATA.map(d => d.TST),
+          backgroundColor: colors,
+          borderRadius: 6, borderSkipped: false,
+          yAxisID: 'yHours'
+        },
+        {
+          label: 'Obiettivo (8h)',
+          data: Array(7).fill(8),
+          type: 'line',
+          borderColor: 'rgba(255,255,255,0.20)',
+          borderDash: [5, 5], borderWidth: 1.5,
+          pointRadius: 0, fill: false, tension: 0,
+          yAxisID: 'yHours'
+        },
+        {
+          label: 'Efficienza (%)',
+          data: CSV_DATA.map(d => d.SE),
+          type: 'line',
+          borderColor: '#a78bfa',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: CSV_DATA.map(d => d.SE >= 90 ? '#22c55e' : d.SE >= 80 ? '#a78bfa' : '#f59e0b'),
+          pointBorderWidth: 0,
+          fill: false,
+          tension: 0.4,
+          yAxisID: 'ySE'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(148,163,184,0.4)',
+          borderWidth: 1, padding: 10,
+          filter: item => item.datasetIndex !== 1,
+          callbacks: {
+            label: ctx => {
+              if (ctx.datasetIndex === 0) return `  Ore sonno: ${hm(ctx.parsed.y)}`;
+              if (ctx.datasetIndex === 1) return null;
+              return `  Efficienza: ${ctx.parsed.y}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: 'rgba(226,232,240,0.7)', font: { size: 11 } } },
+        yHours: {
+          type: 'linear', position: 'left',
+          beginAtZero: false, min: 5, max: 10,
+          grid: { color: 'rgba(148,163,184,0.15)', drawBorder: false },
+          ticks: { color: 'rgba(52,211,153,0.8)', stepSize: 1, callback: v => v + 'h' }
+        },
+        ySE: {
+          type: 'linear', position: 'right',
+          min: 60, max: 100,
+          grid: { display: false },
+          ticks: { color: 'rgba(167,139,250,0.8)', font: { size: 11 }, callback: v => v + '%' }
+        }
+      }
+    }
+  });
+  hideEmptyChartMessage('weekTrend');
+  chartRegistry['weekTrend'] = trendChart;
+}
+
+function createLine() {
+  const canvas = document.getElementById('sleepLine');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+  gradient.addColorStop(0, 'rgba(129,140,248,0.45)');
+  gradient.addColorStop(1, 'rgba(15,23,42,0)');
+
+  // Genera profilo orario simulato basato sull'ultima notte (LAST_NIGHT)
+  // Usa SE, WASO, MI per dare forma realistica alla curva
+  // Struttura tipica: addormentamento → sonno leggero → profondo → REM → risveglio
+  const night = LAST_NIGHT;
+  const hours = ['23:00','00:00','01:00','02:00','03:00','04:00','05:00','06:00','07:00'];
+  // Qualità simulata ora per ora basata sui parametri reali della notte
+  // Valori scalati su base SE, depressi da WASO/MI
+  const baseSE = night.SE;
+  const wasoDepression = night.WASO * 15;   // più WASO → curve più basse
+  const miNoise = night.MI * 0.3;           // MI aggiunge variabilità
+  const profile = [
+    Math.round(baseSE * 0.55 - miNoise),          // 23:00 addormentamento
+    Math.round(baseSE * 0.72),                     // 00:00 N1/N2
+    Math.round(baseSE * 0.92),                     // 01:00 sonno profondo
+    Math.round(baseSE * 0.98),                     // 02:00 picco profondo
+    Math.round(baseSE * 0.85 - wasoDepression/2),  // 03:00 primo REM
+    Math.round(baseSE * 0.78 - wasoDepression/3),  // 04:00 REM/leggero
+    Math.round(baseSE * 0.88),                     // 05:00 secondo ciclo profondo
+    Math.round(baseSE * 0.75 - miNoise/2),         // 06:00 sonno leggero mattino
+    Math.round(baseSE * 0.45),                     // 07:00 risveglio
+  ].map(v => Math.max(30, Math.min(100, v)));
+
+  if (sleepChart) sleepChart.destroy();
+  sleepChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: hours,
+      datasets: [{
+        label: 'Qualità sonno (%)',
+        data: profile,
+        tension: 0.5,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: profile.map(v => v >= 90 ? '#22c55e' : v >= 70 ? '#6366f1' : '#f59e0b'),
+        pointBorderWidth: 0,
+        fill: true,
+        backgroundColor: gradient,
+        borderColor: '#6366f1',
+        borderWidth: 2.5
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(148,163,184,0.4)',
+          borderWidth: 1, padding: 10, displayColors: false,
+          callbacks: {
+            title: items => 'Ora ' + items[0].label,
+            label: ctx => {
+              const v = ctx.parsed.y;
+              const fase = v >= 90 ? '😴 Sonno profondo' : v >= 70 ? '🌙 Sonno normale' : v >= 50 ? '💤 Sonno leggero' : '👁️ Risveglio';
+              return `${fase} — ${v}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          display: true, min: 0, max: 100,
+          grid: { color: 'rgba(148,163,184,0.08)', drawBorder: false },
+          ticks: { color: 'rgba(148,163,184,0.7)', font: { size: 10 }, callback: v => v + '%' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: 'rgba(226,232,240,0.7)', font: { size: 10 } }
+        }
+      }
+    }
+  });
+  hideEmptyChartMessage('sleepLine');
+}
