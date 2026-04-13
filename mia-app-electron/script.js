@@ -755,6 +755,8 @@ function saveSettings() {
 
 // ==================== CHIAMATE ALLE API ====================
 
+const API_BASE_URL = 'https://127.0.0.1:5000';
+
 async function login() {
   const email = document.getElementById('email').value.trim();
   const pw = document.getElementById('pw').value;
@@ -765,7 +767,7 @@ async function login() {
   }
 
   try {
-    const res = await fetch('https://127.0.0.1:5000/login', {
+    const res = await fetch(`${API_BASE_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: pw })
@@ -861,7 +863,7 @@ async function register() {
 
 
   try {
-    const res = await fetch('https://127.0.0.1:5000/register', {
+    const res = await fetch(`${API_BASE_URL}/register`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -910,7 +912,7 @@ async function changePassword() {
   }
 
   try {
-    const res = await fetch('https://127.0.0.1:5000/change-password', {
+    const res = await fetch(`${API_BASE_URL}/change-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -1007,7 +1009,7 @@ async function salvaProfilo() {
   }
 
   try {
-    const res = await fetch('https://127.0.0.1:5000/changeProfile', {
+    const res = await fetch(`${API_BASE_URL}/changeProfile`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -1048,7 +1050,7 @@ async function caricaProfilo(){
   successBox.style.display = 'none';
 
   try {
-    const res = await fetch('https://127.0.0.1:5000/caricaProfilo', {
+    const res = await fetch(`${API_BASE_URL}/caricaProfilo`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -1092,7 +1094,7 @@ async function clearAllData() {
     successBox.style.display = 'none';
 
     try{
-      const res = await fetch('https://127.0.0.1:5000/clearAllData', {
+      const res = await fetch(`${API_BASE_URL}/clearAllData`, {
         method: 'GET',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -1120,7 +1122,7 @@ async function clearAllData() {
     if (confirm('Sei sicuro di voler uscire?')) {
       // Ricarica la pagina per resettare lo stato
       try{
-        const res = await fetch('https://127.0.0.1:5000/logout', {
+        const res = await fetch(`${API_BASE_URL}/logout`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'

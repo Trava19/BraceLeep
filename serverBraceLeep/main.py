@@ -32,19 +32,20 @@ def login():
     password = data["password"]
     
     
+    
     cur = db.cursor(dictionary=True)
     cur.execute("SELECT * FROM utenti WHERE email = %s", (email,))
     user = cur.fetchone()
 
 
     if not user:
-        return jsonify(success=False, message="Credenziali non valide email")
+        return jsonify(success=False, message="Credenziali non valide")
 
-
+     
     hash_db = re.sub(r"[\r\n]", "", user["password"])
 
     if not bcrypt.checkpw(password.encode(), hash_db.encode()):
-        return jsonify(success=False, message="Credenziali non valide password")
+        return jsonify(success=False, message="Credenziali non valide")
 
 
     return jsonify(success=True, email=user["email"])
