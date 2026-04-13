@@ -21,7 +21,8 @@ function createWindow() {
     height: 800,
     webPreferences: {
       nodeIntegration: true,      // puoi lasciarlo per ora
-      contextIsolation: false     // idem (in prod si cambia)
+      contextIsolation: false,     // idem (in prod si cambia)
+      webSecurity: false          // Disabilita la sicurezza web per permettere le richieste a localhost
     }
   });
 
