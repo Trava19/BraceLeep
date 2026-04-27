@@ -1110,6 +1110,11 @@ async function caricaProfilo(){
       document.getElementById('sleepGoal').value = result.profile.obiettivo_sonno;
       document.getElementById('activityLevel').value = result.profile.livello_attivita;
       document.getElementById('sleepIssues').value = result.profile.problemi_sonno;
+
+      const unit = JSON.parse(localStorage.getItem('braceleep_settings') || '{}').unitSystem || 'metric';
+        if (unit === 'imperial') {
+            applyUnitSystem('imperial');
+        }
     } else {
       errorBox.textContent = result.message;
       errorBox.style.display = 'block';
