@@ -1,6 +1,6 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 
-document.getElementById('year').textContent = new Date().getFullYear();
+
 
 // ==================== DATI CSV (embedded per test grafico) ====================
 // Originariamente i dati verrebbero dal server/braccialetto
@@ -611,53 +611,7 @@ function showLoginError(msg) {
   // ==================== GESTIONE PROFILO ====================
 
 
-  //TODO : togli la funzione che tanto c'è già quella giusta
-  function loadProfile() {
-    const saved = localStorage.getItem('braceleep_profile');
-    if (saved) {
-      userProfile = JSON.parse(saved);
-      
-      // Popola i campi del form
-      document.getElementById('fullName').value = userProfile.fullName || '';
-      document.getElementById('age').value = userProfile.age || '';
-      document.getElementById('gender').value = userProfile.gender || '';
-      document.getElementById('weight').value = userProfile.weight || '';
-      document.getElementById('height').value = userProfile.height || '';
-      document.getElementById('sleepGoal').value = userProfile.sleepGoal || 8;
-      document.getElementById('activityLevel').value = userProfile.activityLevel || '';
-      document.getElementById('sleepIssues').value = userProfile.sleepIssues || '';
-      
-      updateProfileStats();
-    }
-  }
-
-  //TODO : togli la funzione che tanto c'è già quella giusta
-
-  function saveProfile(event) {
-    event.preventDefault();
-    
-    userProfile = {
-      fullName: document.getElementById('fullName').value,
-      age: parseInt(document.getElementById('age').value) || null,
-      gender: document.getElementById('gender').value,
-      weight: parseFloat(document.getElementById('weight').value) || null,
-      height: parseInt(document.getElementById('height').value) || null,
-      sleepGoal: parseFloat(document.getElementById('sleepGoal').value) || 8,
-      activityLevel: document.getElementById('activityLevel').value,
-      sleepIssues: document.getElementById('sleepIssues').value
-    };
-    
-    localStorage.setItem('braceleep_profile', JSON.stringify(userProfile));
-    
-    updateProfileStats();
-    
-    // Mostra messaggio di successo
-    const successMsg = document.getElementById('profileSuccess');
-    successMsg.style.display = 'block';
-    setTimeout(() => {
-      successMsg.style.display = 'none';
-    }, 3000);
-  }
+ 
 
   //TODO : non so se questa funzione potrà essermi utile per fare i garfici
 
@@ -725,37 +679,124 @@ function showLoginError(msg) {
 
   // ==================== GESTIONE IMPOSTAZIONI ====================
 
-function loadSettings() { // TODO: fallo giusto e non uesta merda ua
-  const saved = localStorage.getItem('braceleep_settings');
-  if (saved) {
-    const settings = JSON.parse(saved);
-    document.getElementById('notificationsEnabled').checked = settings.notifications || false;
-    document.getElementById('darkMode').checked = settings.darkMode !== false;
-    document.getElementById('unitSystem').value = settings.unitSystem || 'metric';
-    document.getElementById('language').value = settings.language || 'it';
-  }
+function loadSettings() {
+    const saved = localStorage.getItem('braceleep_settings');
+    const settings = saved ? JSON.parse(saved) : {};
+
+    const darkMode = settings.darkMode !== false; // default true
+    const notifications = settings.notifications || false;
+    const unitSystem = settings.unitSystem || 'metric';
+
+    document.getElementById('darkMode').checked = darkMode;
+    document.getElementById('notificationsEnabled').checked = notifications;
+    document.getElementById('unitSystem').value = unitSystem;
+
+    applyTheme(darkMode);
+
+    // Listener in tempo reale sul toggle tema
+    document.getElementById('darkMode').addEventListener('change', (e) => {
+        applyTheme(e.target.checked);
+    });
 }
 
 function saveSettings() {
-  const settings = {
-    notifications: document.getElementById('notificationsEnabled').checked,
-    darkMode: document.getElementById('darkMode').checked,
-    unitSystem: document.getElementById('unitSystem').value,
-    language: document.getElementById('language').value
-  };
-  
-  localStorage.setItem('braceleep_settings', JSON.stringify(settings));
-  
-  const successMsg = document.getElementById('settingsSuccess');
-  successMsg.style.display = 'block';
-  setTimeout(() => {
-    successMsg.style.display = 'none';
-  }, 3000);
+    const darkMode = document.getElementById('darkMode').checked;
+    const notifications = document.getElementById('notificationsEnabled').checked;
+    const unitSystem = document.getElementById('unitSystem').value;
+
+    // Leggi i valori attuali nel profilo PRIMA di cambiare sistema
+    const oldUnit = JSON.parse(localStorage.getItem('braceleep_settings') || '{}').unitSystem || 'metric';
+
+    localStorage.setItem('braceleep_settings', JSON.stringify({
+        darkMode, notifications, unitSystem
+    }));
+
+    applyTheme(darkMode);
+
+    // Converti i valori mostrati nel profilo se l'unità è cambiata
+    if (oldUnit !== unitSystem) {
+        applyUnitSystem(unitSystem);
+    }
+
+    if (notifications) {
+        requestNotificationPermission();
+    }
+
+    const msg = document.getElementById('settingsSuccess');
+    msg.style.display = 'block';
+    setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+// ==================== TEMA ====================
+
+function applyTheme(isDark) {
+    document.body.classList.toggle('light-mode', !isDark);
+}
+
+// ==================== UNITÀ DI MISURA ====================
+
+function applyUnitSystem(newUnit) {
+    const weightInput = document.getElementById('weight');
+    const heightInput = document.getElementById('height');
+    if (!weightInput || !heightInput) return;
+
+    const w = parseFloat(weightInput.value);
+    const h = parseFloat(heightInput.value);
+
+    if (newUnit === 'imperial') {
+        if (w) weightInput.value = (w * 2.20462).toFixed(1);
+        if (h) heightInput.value = (h / 2.54).toFixed(1);
+        weightInput.closest('.form-group').querySelector('label').textContent = 'Peso (lb)';
+        heightInput.closest('.form-group').querySelector('label').textContent = 'Altezza (in)';
+        weightInput.placeholder = '154 (lb)';
+        heightInput.placeholder = '69 (in)';
+    } else {
+        if (w) weightInput.value = (w / 2.20462).toFixed(1);
+        if (h) heightInput.value = (h * 2.54).toFixed(1);
+        weightInput.closest('.form-group').querySelector('label').textContent = 'Peso (kg)';
+        heightInput.closest('.form-group').querySelector('label').textContent = 'Altezza (cm)';
+        weightInput.placeholder = '70 (kg)';
+        heightInput.placeholder = '175 (cm)';
+    }
+}
+
+// Chiamata dentro salvaProfilo() prima di mandare i dati al server
+function getMetricValues() {
+    const unit = JSON.parse(localStorage.getItem('braceleep_settings') || '{}').unitSystem || 'metric';
+    let weight = parseFloat(document.getElementById('weight').value);
+    let height = parseFloat(document.getElementById('height').value);
+
+    if (unit === 'imperial') {
+        weight = weight / 2.20462; // lb → kg
+        height = height * 2.54;    // in → cm
+    }
+    return { weight, height };
+}
+
+// ==================== NOTIFICHE ====================
+
+function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                sendNotification('Braceleep 🌙', 'Notifiche attivate!');
+            }
+        });
+    }
+}
+
+function sendNotification(title, body) {
+    const settings = JSON.parse(localStorage.getItem('braceleep_settings') || '{}');
+    if (Notification.permission === 'granted' && settings.notifications) {
+        new Notification(title, { body, icon: 'foto/logo.png' });
+    }
 }
 
 // ==================== CHIAMATE ALLE API ====================
 
-const API_BASE_URL = 'https://127.0.0.1:5000';
+const API_BASE_URL = 'http://127.0.0.1:5000';
 
 async function login() {
   const email = document.getElementById('email').value.trim();
@@ -963,8 +1004,7 @@ async function salvaProfilo() {
   const fullName = document.getElementById('fullName').value.trim();
   const age = parseInt(document.getElementById('age').value.trim());
   const gender = document.getElementById('gender').value;
-  const weight = parseFloat(document.getElementById('weight').value.trim());
-  const height = parseInt(document.getElementById('height').value.trim());
+  const { weight, height } = getMetricValues();
   const sleepGoal = parseFloat(document.getElementById('sleepGoal').value.trim());
   const activityLevel = document.getElementById('activityLevel').value;
   const sleepIssues = document.getElementById('sleepIssues').value.trim();

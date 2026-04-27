@@ -1,8 +1,9 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, g
 import mysql.connector
 import bcrypt
 import re
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 app.secret_key ="831010ba9bd447d1502a480b6f78b8183c4112e2b45314d1e978cb7629aa19b3"
@@ -16,12 +17,38 @@ app.config.update(
 )
 
 
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="",
-    database="braccialetto_sonno"
-)
+import time
+
+# ================= DATABASE CONNECTION =================
+
+def get_db():
+    """Connessione fresca per ogni richiesta, con retry"""
+    while True:
+        try:
+            return mysql.connector.connect(
+                host=os.getenv("DB_HOST"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                database=os.getenv("DB_NAME")
+            )
+        except Exception as e:
+            print(f"DB non pronto, retry... ({e})")
+            time.sleep(2)
+
+@app.teardown_appcontext
+def close_db(error):
+    """Chiude la connessione a fine richiesta"""
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+def get_conn():
+    """Usa la stessa connessione per tutta la durata della richiesta"""
+    if "db" not in g:
+        g.db = get_db()
+    return g.db
+
+
 
 # ================= LOGIN =================
 @app.route("/login", methods=["POST"])
@@ -31,7 +58,7 @@ def login():
     session["email"] = email
     password = data["password"]
     
-    
+    db = get_conn()
     
     cur = db.cursor(dictionary=True)
     cur.execute("SELECT * FROM utenti WHERE email = %s", (email,))
@@ -66,7 +93,7 @@ def register():
     if not nome or not cognome or not email or not password:
         return jsonify(success=False, message="Compila tutti i campi obbligatori")
     
-    
+    db = get_conn()
 
     # Verifica se email già esistente
     cur = db.cursor(dictionary=True)
@@ -103,6 +130,7 @@ def change_password():
     if not email or not old_pw or not new_pw:
         return jsonify(success=False, message="Dati mancanti"), 400
 
+    db = get_conn()
     cur = db.cursor(dictionary=True)
     cur.execute("SELECT password FROM utenti WHERE email = %s", (email,))
     user = cur.fetchone()
@@ -145,6 +173,7 @@ def change_profile():
     nome = partiNome[0]
     cognome = " ".join(partiNome[1:]) if len(partiNome) > 1 else ""
 
+    db = get_conn()
     cur = db.cursor(dictionary=True)
     cur.execute("SELECT id FROM utenti WHERE email = %s", (email,))
     if not cur.fetchone():
@@ -184,6 +213,7 @@ def carica_profile():
     if not email:
         return jsonify(success=False, message="Dati mancanti")
 
+    db = get_conn()
     cur = db.cursor(dictionary=True)
     cur.execute("SELECT * FROM utenti WHERE email = %s", (email,))
     user = cur.fetchone()
@@ -212,6 +242,7 @@ def clearAllData():
     if not email:
         return jsonify(success=False, message="Dati mancanti")
 
+    db = get_conn()
     cur = db.cursor()
     cur.execute("DELETE FROM utenti WHERE email = %s", (email,))
     db.commit()
@@ -228,4 +259,4 @@ def logout():
 
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True, ssl_context='adhoc',host='0.0.0.0')
+    app.run(port=5000, debug=True,host='0.0.0.0')

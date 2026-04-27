@@ -10,6 +10,189 @@
     --glow: 0 0 12px #3ecbf7;
 }
 
+body.light-mode {
+    --bg: #f0f4f8;
+    --card: rgba(0, 0, 0, 0.04);
+    --glass: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(0, 0, 0, 0.1);
+    --glass-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    --muted: #4a5568;
+    background: #f0f4f8;
+    color: #1a202c;
+}
+
+/* testo generico */
+body.light-mode,
+body.light-mode h1,
+body.light-mode h2,
+body.light-mode h3,
+body.light-mode p,
+body.light-mode span,
+body.light-mode div,
+body.light-mode .small,
+body.light-mode .toggle-title,
+body.light-mode .toggle-desc,
+body.light-mode .insight-text,
+body.light-mode .stage-bar-name,
+body.light-mode .stage-legend-item,
+body.light-mode .glossary-def,
+body.light-mode .chart-pill,
+body.light-mode details summary {
+    color: #1a202c;
+}
+
+/* label form */
+body.light-mode .form-group label,
+body.light-mode #loginBox label,
+body.light-mode #registerBox label {
+    color: #1a202c !important;
+}
+
+/* card */
+body.light-mode .card {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(0,0,0,0.08);
+}
+
+/* nav */
+body.light-mode nav {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0,0,0,0.08);
+}
+body.light-mode .nav-item {
+    color: #4a5568;
+}
+body.light-mode .nav-item:hover {
+    background: rgba(0,0,0,0.05);
+    color: #1a202c;
+}
+body.light-mode .nav-item.active {
+    color: white;
+}
+
+/* header */
+body.light-mode header {
+    color: #1a202c;
+}
+body.light-mode .chip {
+    background: rgba(0,0,0,0.06);
+    border-color: rgba(0,0,0,0.1);
+    color: #1a202c;
+}
+
+/* input e select */
+body.light-mode .form-group input,
+body.light-mode .form-group select {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0,0,0,0.15);
+    color: #1a202c;
+}
+body.light-mode .form-group select {
+    background: rgba(0,0,0,0.05);
+    color: #1a202c;
+}
+body.light-mode .form-group select option {
+    background: #f0f4f8;
+    color: #1a202c;
+}
+body.light-mode .form-group input::placeholder {
+    color: #718096;
+}
+body.light-mode .form-group input:focus,
+body.light-mode .form-group select:focus {
+    background: rgba(0,0,0,0.07);
+}
+
+/* login/register box */
+body.light-mode #loginBox,
+body.light-mode #registerBox {
+    background: rgba(255,255,255,0.92);
+    border-color: rgba(0,0,0,0.08);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+}
+body.light-mode #loginBox input,
+body.light-mode #registerBox input {
+    background: rgba(0,0,0,0.05);
+    border-color: rgba(0,0,0,0.12);
+    color: #1a202c;
+}
+body.light-mode #loginBox input::placeholder,
+body.light-mode #registerBox input::placeholder {
+    color: #718096;
+}
+
+/* stat box */
+body.light-mode .stat-box {
+    background: rgba(0,0,0,0.04);
+    border-color: rgba(0,0,0,0.08);
+}
+body.light-mode .stat-label {
+    color: #4a5568;
+}
+
+/* glossario */
+body.light-mode .glossary-item {
+    background: rgba(0,0,0,0.03);
+    border-color: rgba(0,0,0,0.08);
+}
+body.light-mode .glossary-term {
+    color: #6d28d9;
+}
+body.light-mode .glossary-def {
+    color: #4a5568;
+}
+
+/* chart pills */
+body.light-mode .chart-pill {
+    background: rgba(0,0,0,0.05);
+    border-color: rgba(0,0,0,0.12);
+    color: #4a5568;
+}
+body.light-mode .chart-pill.active {
+    background: rgba(0,0,0,0.08);
+    color: #1a202c;
+}
+
+/* insight */
+body.light-mode .insight-card {
+    background: rgba(124,58,237,0.05);
+    border-color: rgba(124,58,237,0.2);
+}
+body.light-mode .insight-text {
+    color: #374151;
+}
+
+/* toggle switch */
+body.light-mode .toggle-row {
+    border-color: rgba(0,0,0,0.08);
+}
+body.light-mode .toggle-slider {
+    background: rgba(0,0,0,0.1);
+    border-color: rgba(0,0,0,0.15);
+}
+body.light-mode .toggle-slider::before {
+    background: rgba(0,0,0,0.3);
+}
+
+/* stage badge */
+body.light-mode .stage-pct-badge {
+    background: rgba(0,0,0,0.05);
+    border-color: rgba(0,0,0,0.1);
+    color: #4a5568;
+}
+
+/* tooltip */
+body.light-mode .tooltip-icon {
+    background: rgba(0,0,0,0.08);
+    border-color: rgba(0,0,0,0.12);
+    color: #4a5568;
+}
+
+/* footer */
+body.light-mode footer {
+    color: #4a5568;
+}
+
 *{box-sizing:border-box}
 
 body{
@@ -115,13 +298,19 @@ nav{
 }
 
 .brand{display:flex;gap:14px;align-items:center}
-.logo{
-    width:56px;height:56px;
-    border-radius:12px;
-    background:var(--accent1);
-    display:flex;align-items:center;justify-content:center;
-    color:white;font-weight:800;
-    box-shadow:var(--glass-shadow);
+
+.logo {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0, 150, 255, 0.4);
+    transition: all 0.3s ease;
+}
+
+.logo:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 18px rgba(0, 150, 255, 0.7);
 }
 
 .grid{
