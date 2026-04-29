@@ -1,6 +1,6 @@
 document.getElementById('year').textContent = new Date().getFullYear();
 
-
+document.getElementById('year').textContent = new Date().getFullYear();
 
 // ==================== DATI CSV (embedded per test grafico) ====================
 // Originariamente i dati verrebbero dal server/braccialetto
@@ -190,7 +190,7 @@ function showLoginError(msg) {
           break;
 
         case 'realtime':
-          updateRealtimeData(response.data);
+          processSleepPacket(response.data);
           break;
 
         case 'last_night':
@@ -211,109 +211,14 @@ function showLoginError(msg) {
       log('Errore parsing risposta: ' + e);
     }
   }
-
-  async function toggleBracelet() {
-    if (!connected) {
-      await connectBLE();
-    } else {
-      await disconnectBLE();
-    }
+  
+async function toggleBracelet() {
+  if (!connected) {
+    await riceviDati();
+  } else {
+    await disconnectBLE();
   }
-
-  async function connectBLE() {
-    const chip = document.getElementById('braceletChip');
-    const btn = document.getElementById('connectBtn');
-
-    // Verifica supporto Web Bluetooth
-    if (!navigator.bluetooth) {
-      alert('Il tuo browser non supporta Web Bluetooth API.\n\nUsa Chrome, Edge o Opera su desktop/Android.');
-      return;
-    }
-
-    try {
-      chip.innerHTML = "Braccialetto: <strong>Ricerca...</strong>";
-      chip.classList.add('glowing');
-      btn.textContent = '🔍 Ricerca in corso...';
-      btn.disabled = true;
-      updateStatus('Ricerca dispositivi BLE...');
-
-      // Richiedi dispositivo BLE
-      log('Richiesta dispositivo BLE...');
-      bleDevice = await navigator.bluetooth.requestDevice({
-        filters: [{ name: 'BraceLeep' }],
-        optionalServices: [UART_SERVICE_UUID]
-      });
-
-      log('Dispositivo selezionato: ' + bleDevice.name);
-      chip.innerHTML = "Braccialetto: <strong>Connessione...</strong>";
-      chip.classList.add('glowing');
-      updateStatus('Connessione a ' + bleDevice.name + '...');
-
-      // Gestisci disconnessione
-      bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-
-      // Connetti al server GATT
-      log('Connessione GATT...');
-      bleServer = await bleDevice.gatt.connect();
-      log('Server GATT connesso');
-
-      // Ottieni servizio UART
-      log('Ricerca servizio UART...');
-      uartService = await bleServer.getPrimaryService(UART_SERVICE_UUID);
-      log('Servizio UART trovato');
-
-      // Ottieni caratteristiche TX e RX
-      log('Ricerca caratteristiche...');
-      txCharacteristic = await uartService.getCharacteristic(UART_TX_UUID);
-      rxCharacteristic = await uartService.getCharacteristic(UART_RX_UUID);
-      log('Caratteristiche trovate');
-
-      // Abilita notifiche su RX
-      await rxCharacteristic.startNotifications();
-      rxCharacteristic.addEventListener('characteristicvaluechanged', handleNotification);
-      log('Notifiche abilitate');
-
-      // Connessione completata
-      connected = true;
-      chip.innerHTML = "Braccialetto: <strong>Connesso</strong>";
-      chip.classList.add('glowing');
-      updateStatus('Connesso! Sincronizzato alle ' + new Date().toLocaleTimeString('it-IT'));
-      btn.textContent = '🔌 Disconnetti';
-      btn.disabled = false;
-      document.getElementById('monitorBtn').disabled = false;
-
-      log('✓ Connessione completata');
-
-      // Richiedi dati iniziali
-      setTimeout(() => {
-        sendCommand('status');
-        sendCommand('last_night');
-        sendCommand('week_trend');
-      }, 500);
-
-      // Avvia polling periodico
-      statusCheckInterval = setInterval(() => {
-        sendCommand('status');
-      }, 10000);
-
-      realtimeDataInterval = setInterval(() => {
-        sendCommand('realtime');
-      }, 2000);
-
-    } catch (error) {
-      log('Errore connessione: ' + error);
-      chip.innerHTML = "Braccialetto: <strong>Errore</strong>";
-      chip.classList.remove('glowing');
-      updateStatus('Errore: ' + error.message);
-      btn.textContent = '🔍 Cerca Braccialetto';
-      btn.disabled = false;
-
-      setTimeout(() => {
-        chip.innerHTML = "Braccialetto: <strong>Non connesso</strong>";
-        updateStatus('In attesa di connessione...');
-      }, 3000);
-    }
-  }
+}
 
   async function disconnectBLE() {
     log('Disconnessione...');
@@ -332,6 +237,7 @@ function showLoginError(msg) {
       await bleDevice.gatt.disconnect();
     }
 
+    showDisconnectedState();
     onDisconnected();
   }
 
@@ -611,7 +517,53 @@ function showLoginError(msg) {
   // ==================== GESTIONE PROFILO ====================
 
 
- 
+  //TODO : togli la funzione che tanto c'è già quella giusta
+  function loadProfile() {
+    const saved = localStorage.getItem('braceleep_profile');
+    if (saved) {
+      userProfile = JSON.parse(saved);
+      
+      // Popola i campi del form
+      document.getElementById('fullName').value = userProfile.fullName || '';
+      document.getElementById('age').value = userProfile.age || '';
+      document.getElementById('gender').value = userProfile.gender || '';
+      document.getElementById('weight').value = userProfile.weight || '';
+      document.getElementById('height').value = userProfile.height || '';
+      document.getElementById('sleepGoal').value = userProfile.sleepGoal || 8;
+      document.getElementById('activityLevel').value = userProfile.activityLevel || '';
+      document.getElementById('sleepIssues').value = userProfile.sleepIssues || '';
+      
+      updateProfileStats();
+    }
+  }
+
+  //TODO : togli la funzione che tanto c'è già quella giusta
+
+  function saveProfile(event) {
+    event.preventDefault();
+    
+    userProfile = {
+      fullName: document.getElementById('fullName').value,
+      age: parseInt(document.getElementById('age').value) || null,
+      gender: document.getElementById('gender').value,
+      weight: parseFloat(document.getElementById('weight').value) || null,
+      height: parseInt(document.getElementById('height').value) || null,
+      sleepGoal: parseFloat(document.getElementById('sleepGoal').value) || 8,
+      activityLevel: document.getElementById('activityLevel').value,
+      sleepIssues: document.getElementById('sleepIssues').value
+    };
+    
+    localStorage.setItem('braceleep_profile', JSON.stringify(userProfile));
+    
+    updateProfileStats();
+    
+    // Mostra messaggio di successo
+    const successMsg = document.getElementById('profileSuccess');
+    successMsg.style.display = 'block';
+    setTimeout(() => {
+      successMsg.style.display = 'none';
+    }, 3000);
+  }
 
   //TODO : non so se questa funzione potrà essermi utile per fare i garfici
 
@@ -679,124 +631,37 @@ function showLoginError(msg) {
 
   // ==================== GESTIONE IMPOSTAZIONI ====================
 
-function loadSettings() {
-    const saved = localStorage.getItem('braceleep_settings');
-    const settings = saved ? JSON.parse(saved) : {};
-
-    const darkMode = settings.darkMode !== false; // default true
-    const notifications = settings.notifications || false;
-    const unitSystem = settings.unitSystem || 'metric';
-
-    document.getElementById('darkMode').checked = darkMode;
-    document.getElementById('notificationsEnabled').checked = notifications;
-    document.getElementById('unitSystem').value = unitSystem;
-
-    applyTheme(darkMode);
-
-    // Listener in tempo reale sul toggle tema
-    document.getElementById('darkMode').addEventListener('change', (e) => {
-        applyTheme(e.target.checked);
-    });
+function loadSettings() { // TODO: fallo giusto e non uesta merda ua
+  const saved = localStorage.getItem('braceleep_settings');
+  if (saved) {
+    const settings = JSON.parse(saved);
+    document.getElementById('notificationsEnabled').checked = settings.notifications || false;
+    document.getElementById('darkMode').checked = settings.darkMode !== false;
+    document.getElementById('unitSystem').value = settings.unitSystem || 'metric';
+    document.getElementById('language').value = settings.language || 'it';
+  }
 }
 
 function saveSettings() {
-    const darkMode = document.getElementById('darkMode').checked;
-    const notifications = document.getElementById('notificationsEnabled').checked;
-    const unitSystem = document.getElementById('unitSystem').value;
-
-    // Leggi i valori attuali nel profilo PRIMA di cambiare sistema
-    const oldUnit = JSON.parse(localStorage.getItem('braceleep_settings') || '{}').unitSystem || 'metric';
-
-    localStorage.setItem('braceleep_settings', JSON.stringify({
-        darkMode, notifications, unitSystem
-    }));
-
-    applyTheme(darkMode);
-
-    // Converti i valori mostrati nel profilo se l'unità è cambiata
-    if (oldUnit !== unitSystem) {
-        applyUnitSystem(unitSystem);
-    }
-
-    if (notifications) {
-        requestNotificationPermission();
-    }
-
-    const msg = document.getElementById('settingsSuccess');
-    msg.style.display = 'block';
-    setTimeout(() => msg.style.display = 'none', 3000);
-}
-
-// ==================== TEMA ====================
-
-function applyTheme(isDark) {
-    document.body.classList.toggle('light-mode', !isDark);
-}
-
-// ==================== UNITÀ DI MISURA ====================
-
-function applyUnitSystem(newUnit) {
-    const weightInput = document.getElementById('weight');
-    const heightInput = document.getElementById('height');
-    if (!weightInput || !heightInput) return;
-
-    const w = parseFloat(weightInput.value);
-    const h = parseFloat(heightInput.value);
-
-    if (newUnit === 'imperial') {
-        if (w) weightInput.value = (w * 2.20462).toFixed(1);
-        if (h) heightInput.value = (h / 2.54).toFixed(1);
-        weightInput.closest('.form-group').querySelector('label').textContent = 'Peso (lb)';
-        heightInput.closest('.form-group').querySelector('label').textContent = 'Altezza (in)';
-        weightInput.placeholder = '154 (lb)';
-        heightInput.placeholder = '69 (in)';
-    } else {
-        if (w) weightInput.value = (w / 2.20462).toFixed(1);
-        if (h) heightInput.value = (h * 2.54).toFixed(1);
-        weightInput.closest('.form-group').querySelector('label').textContent = 'Peso (kg)';
-        heightInput.closest('.form-group').querySelector('label').textContent = 'Altezza (cm)';
-        weightInput.placeholder = '70 (kg)';
-        heightInput.placeholder = '175 (cm)';
-    }
-}
-
-// Chiamata dentro salvaProfilo() prima di mandare i dati al server
-function getMetricValues() {
-    const unit = JSON.parse(localStorage.getItem('braceleep_settings') || '{}').unitSystem || 'metric';
-    let weight = parseFloat(document.getElementById('weight').value);
-    let height = parseFloat(document.getElementById('height').value);
-
-    if (unit === 'imperial') {
-        weight = weight / 2.20462; // lb → kg
-        height = height * 2.54;    // in → cm
-    }
-    return { weight, height };
-}
-
-// ==================== NOTIFICHE ====================
-
-function requestNotificationPermission() {
-    if (!('Notification' in window)) return;
-
-    if (Notification.permission === 'default') {
-        Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-                sendNotification('Braceleep 🌙', 'Notifiche attivate!');
-            }
-        });
-    }
-}
-
-function sendNotification(title, body) {
-    const settings = JSON.parse(localStorage.getItem('braceleep_settings') || '{}');
-    if (Notification.permission === 'granted' && settings.notifications) {
-        new Notification(title, { body, icon: 'foto/logo.png' });
-    }
+  const settings = {
+    notifications: document.getElementById('notificationsEnabled').checked,
+    darkMode: document.getElementById('darkMode').checked,
+    unitSystem: document.getElementById('unitSystem').value,
+    language: document.getElementById('language').value
+  };
+  
+  localStorage.setItem('braceleep_settings', JSON.stringify(settings));
+  
+  const successMsg = document.getElementById('settingsSuccess');
+  successMsg.style.display = 'block';
+  setTimeout(() => {
+    successMsg.style.display = 'none';
+  }, 3000);
 }
 
 // ==================== CHIAMATE ALLE API ====================
 
-const API_BASE_URL = 'http://127.0.0.1:5000';
+const API_BASE_URL = 'https://127.0.0.1:5000';
 
 async function login() {
   const email = document.getElementById('email').value.trim();
@@ -1004,7 +869,8 @@ async function salvaProfilo() {
   const fullName = document.getElementById('fullName').value.trim();
   const age = parseInt(document.getElementById('age').value.trim());
   const gender = document.getElementById('gender').value;
-  const { weight, height } = getMetricValues();
+  const weight = parseFloat(document.getElementById('weight').value.trim());
+  const height = parseInt(document.getElementById('height').value.trim());
   const sleepGoal = parseFloat(document.getElementById('sleepGoal').value.trim());
   const activityLevel = document.getElementById('activityLevel').value;
   const sleepIssues = document.getElementById('sleepIssues').value.trim();
@@ -1110,11 +976,6 @@ async function caricaProfilo(){
       document.getElementById('sleepGoal').value = result.profile.obiettivo_sonno;
       document.getElementById('activityLevel').value = result.profile.livello_attivita;
       document.getElementById('sleepIssues').value = result.profile.problemi_sonno;
-
-      const unit = JSON.parse(localStorage.getItem('braceleep_settings') || '{}').unitSystem || 'metric';
-        if (unit === 'imperial') {
-            applyUnitSystem('imperial');
-        }
     } else {
       errorBox.textContent = result.message;
       errorBox.style.display = 'block';
@@ -1254,42 +1115,10 @@ function updateInsight() {
 }
 
 function initAppWithData() {
-  // Dati real-time (simulati dall'ultima notte)
-  document.getElementById('realtimeQuality').textContent = LAST_NIGHT.SE + '%';
-  document.getElementById('realtimeHR').innerHTML = '58<span style="font-size:16px">BPM</span>';
-  document.getElementById('realtimeMovement').textContent = LAST_NIGHT.MI + '%';
-  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('it-IT');
-  updateBatteryLevel(72);
-
-  // Obiettivi card
-  const objSleep = document.getElementById('objSleep');
-  const objImpr  = document.getElementById('objImprovement');
-  if (objSleep) objSleep.textContent = hm(AVG_TST);
-  if (objImpr)  objImpr.textContent  = '+' + (LAST_NIGHT.SE - CSV_DATA[0].SE) + '%';
-
-  // Analytics header
-  document.getElementById('avgQualityScore').textContent = QUALITY_SCORE;
-  document.getElementById('avgSleepTime').textContent    = hm(AVG_TST);       // media TST settimanale
-  const lastNightEl = document.getElementById('lastNightTST');
-  if (lastNightEl) lastNightEl.textContent = hm(LAST_NIGHT.TST);
-  document.getElementById('sleepEfficiency').textContent = hm(AVG_WASO);     // WASO medio (ore sveglio)
-
-  const qi = document.getElementById('overallQuality');
-  if (AVG_SE >= 90)      { qi.textContent = 'Ottima';        qi.style.color = '#22c55e'; }
-  else if (AVG_SE >= 80) { qi.textContent = 'Buona';         qi.style.color = '#38bdf8'; }
-  else                   { qi.textContent = 'Da migliorare'; qi.style.color = '#f59e0b'; }
-
-  // Aggiorna label WASO card
-  const wasoLabel = document.querySelector('#sleepEfficiency')?.closest('.card')?.querySelector('.small');
-  // già impostato via HTML
-
-  updateSleepStages(LAST_NIGHT);
-  updateInsight();
-
+  showDisconnectedState();
   createLine();
   createTrend();
   createAnalyticsCharts();
-
   caricaProfilo();
   loadSettings();
 }
@@ -1622,4 +1451,304 @@ function createLine() {
     }
   });
   hideEmptyChartMessage('sleepLine');
+}
+
+let bleCharacteristic = null;
+
+async function riceviDati() {
+  if (!('bluetooth' in navigator)) {
+    console.error('Web Bluetooth non supportato!');
+    return;
+  }
+
+  const MY_SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
+  const MY_CHAR_UUID    = '12345678-1234-1234-1234-123456789abd';
+
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'BraceLeep' }],
+      optionalServices: [MY_SERVICE_UUID]
+    });
+
+    bleDevice = device;
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(MY_SERVICE_UUID);
+    bleCharacteristic = await service.getCharacteristic(MY_CHAR_UUID);
+
+    bleCharacteristic.addEventListener('characteristicvaluechanged', event => {
+      if (!monitoring) return; // ignora dati se monitoraggio non attivo
+      const raw = event.target.value;
+      const text = new TextDecoder().decode(raw);
+      try {
+        const json = JSON.parse(text);
+        processSleepPacket(json);
+      } catch {
+        console.log('Pacchetto non JSON, byte 0:', raw.getUint8(0));
+      }
+    });
+
+    await bleCharacteristic.startNotifications();
+
+    connected = true;
+    document.getElementById('braceletChip').innerHTML = "Braccialetto: <strong>Connesso</strong>";
+    document.getElementById('braceletChip').classList.add('glowing');
+    document.getElementById('connectBtn').textContent = '🔌 Disconnetti';
+    document.getElementById('syncStatus').textContent = 'Connesso alle ' + new Date().toLocaleTimeString('it-IT');
+    document.getElementById('monitorBtn').disabled = false;
+
+  } catch (error) {
+    console.error('Errore:', error);
+    document.getElementById('syncStatus').textContent = 'Errore: ' + error.message;
+  }
+}
+
+
+const SAMPLE_INTERVAL_SEC = 30;
+
+const sleepSession = {
+  startTime:       null,   
+  lastPacketTime:  null,   
+  samples:         [],    
+
+ 
+  totalSamples:    0,      
+  sleepSamples:    0,      
+  wakeSamples:     0,      
+  arousalCount:    0,      
+  badHRSamples:    0,      
+  prevR:           0,      
+
+  wakeBlocks:      [],     
+  currentWakeStart: null,  
+};
+
+function resetSleepSession() {
+  sleepSession.startTime        = null;
+  sleepSession.lastPacketTime   = null;
+  sleepSession.samples          = [];
+  sleepSession.totalSamples     = 0;
+  sleepSession.sleepSamples     = 0;
+  sleepSession.wakeSamples      = 0;
+  sleepSession.arousalCount     = 0;
+  sleepSession.badHRSamples     = 0;
+  sleepSession.prevR            = 0;
+  sleepSession.wakeBlocks       = [];
+  sleepSession.currentWakeStart = null;
+  console.log('[SleepTracker] Sessione resettata');
+}
+
+function processSleepPacket(packet) {
+  const now = new Date();
+  const { b, e, r } = packet;
+
+  if (b === -1 && e === -1) {
+    console.warn('[SleepTracker] Pacchetto errore ignorato:', packet);
+    return;
+  }
+
+  if (!sleepSession.startTime) {
+    sleepSession.startTime = now;
+    console.log('[SleepTracker] Sessione avviata alle', now.toLocaleTimeString('it-IT'));
+  }
+  sleepSession.lastPacketTime = now;
+
+  sleepSession.samples.push({ ts: now, b, e, r });
+  sleepSession.totalSamples++;
+
+  if (r === 0) {
+    sleepSession.sleepSamples++;
+  } else {
+    sleepSession.wakeSamples++;
+  }
+
+  if (r === 1 && sleepSession.prevR === 0) {
+    sleepSession.arousalCount++;
+    sleepSession.currentWakeStart = now;
+    console.log('[SleepTracker] Risveglio #' + sleepSession.arousalCount + ' alle', now.toLocaleTimeString('it-IT'));
+  }
+
+  if (r === 0 && sleepSession.prevR === 1 && sleepSession.currentWakeStart) {
+    const durationSec = (now - sleepSession.currentWakeStart) / 1000;
+    sleepSession.wakeBlocks.push({
+      start:       sleepSession.currentWakeStart,
+      end:         now,
+      durationSec: durationSec
+    });
+    sleepSession.currentWakeStart = null;
+  }
+
+  if (b === -1 || b < 40 || b > 100) {
+    sleepSession.badHRSamples++;
+  }
+
+  sleepSession.prevR = r;
+
+  const metrics = computeMetrics();
+  updateRealtimeUI(metrics, b, r);
+}
+
+function computeMetrics() {
+  const s = sleepSession;
+
+  const TST_min  = s.sleepSamples  * (SAMPLE_INTERVAL_SEC / 60);
+  const TST_h    = TST_min / 60;
+
+  const WASO_min = s.wakeSamples   * (SAMPLE_INTERVAL_SEC / 60);
+  const WASO_h   = WASO_min / 60;
+
+  const TIB_min  = s.totalSamples  * (SAMPLE_INTERVAL_SEC / 60);
+  const TIB_h    = TIB_min / 60;
+
+  const SE = TIB_min > 0 ? Math.round((TST_min / TIB_min) * 100) : 0;
+
+  const risvegli = s.arousalCount;
+
+  const AI = TST_h > 0 ? Math.round((risvegli / TST_h) * 10) / 10 : 0;
+
+  const MI = s.totalSamples > 0
+    ? Math.round((s.badHRSamples / s.totalSamples) * 100)
+    : 0;
+
+  let totalWakeSec = s.wakeBlocks.reduce((acc, b) => acc + b.durationSec, 0);
+  if (s.currentWakeStart) {
+    totalWakeSec += (new Date() - s.currentWakeStart) / 1000;
+  }
+  const DAW_h = totalWakeSec / 3600;
+
+  return {
+    TST:       Math.round(TST_h * 100) / 100,   // ore (2 decimali)
+    WASO:      Math.round(WASO_h * 100) / 100,
+    SE,                                           // intero %
+    risvegli,                                     // intero
+    DAW:       Math.round(DAW_h * 100) / 100,
+    MI,                                           // intero %
+    AI:        Math.round(AI * 10) / 10,          // 1 decimale
+    TIB:       Math.round(TIB_h * 100) / 100,
+    TIB_min,
+    TST_min,
+    WASO_min
+  };
+}
+
+function updateRealtimeUI(metrics, bpm, r) {
+  // Card real-time (sezione Home)
+  const qualEl = document.getElementById('realtimeQuality');
+  if (qualEl) qualEl.textContent = metrics.SE + '%';
+
+  const hrEl = document.getElementById('realtimeHR');
+  if (hrEl) {
+    hrEl.innerHTML = bpm > 0
+      ? `${bpm}<span style="font-size:16px">BPM</span>`
+      : `--<span style="font-size:16px">BPM</span>`;
+  }
+
+  const movEl = document.getElementById('realtimeMovement');
+  if (movEl) movEl.textContent = metrics.MI + '%';
+
+  const updEl = document.getElementById('lastUpdate');
+  if (updEl) updEl.textContent = new Date().toLocaleTimeString('it-IT');
+
+  // Aggiorna i grafici e le statistiche analytics con i dati reali
+  updateAnalyticsWithRealData(metrics);
+
+  console.log('[SleepTracker] Metriche aggiornate:', metrics);
+}
+
+function updateAnalyticsWithRealData(metrics) {
+  // Header analytics
+  const avgQualEl = document.getElementById('avgQualityScore');
+  if (avgQualEl) avgQualEl.textContent = metrics.SE;
+
+  const avgSleepEl = document.getElementById('avgSleepTime');
+  if (avgSleepEl) avgSleepEl.textContent = hm(metrics.TST);
+
+  const lastNightEl = document.getElementById('lastNightTST');
+  if (lastNightEl) lastNightEl.textContent = hm(metrics.TST);
+
+  // WASO card
+  const seEl = document.getElementById('sleepEfficiency');
+  if (seEl) seEl.textContent = hm(metrics.WASO);
+
+  // Qualità globale
+  const qi = document.getElementById('overallQuality');
+  if (qi) {
+    if (metrics.SE >= 90)      { qi.textContent = 'Ottima';        qi.style.color = '#22c55e'; }
+    else if (metrics.SE >= 80) { qi.textContent = 'Buona';         qi.style.color = '#38bdf8'; }
+    else                       { qi.textContent = 'Da migliorare'; qi.style.color = '#f59e0b'; }
+  }
+
+  const nightForStages = {
+    TST:      metrics.TST,
+    WASO:     metrics.WASO,
+    SE:       metrics.SE,
+    risvegli: metrics.risvegli,
+    DAW:      metrics.DAW,
+    MI:       metrics.MI,
+    AI:       metrics.AI
+  };
+  updateSleepStages(nightForStages);
+
+  updateInsightReal(metrics);
+}
+
+function updateInsightReal(metrics) {
+  const el = document.getElementById('insightText');
+  if (!el) return;
+
+  const elapsed = sleepSession.startTime
+    ? Math.round((new Date() - sleepSession.startTime) / 60000) + ' min'
+    : '—';
+
+  let suggerimento = '';
+  if (metrics.SE < 75)      suggerimento = 'Molti risvegli stanotte. Prova a mantenere la stanza fresca e buia.';
+  else if (metrics.SE < 85) suggerimento = 'Efficienza migliorabile. Orari regolari e meno schermi prima di dormire aiutano.';
+  else                      suggerimento = 'Ottima notte! Continua con questa routine.';
+
+  el.innerHTML = `
+    Sessione in corso da <strong>${elapsed}</strong> —
+    Efficienza: <strong>${metrics.SE}%</strong>,
+    Sonno effettivo: <strong>${hm(metrics.TST)}</strong>,
+    Sveglio: <strong>${hm(metrics.WASO)}</strong>,
+    Risvegli: <strong>${metrics.risvegli}</strong>,
+    AI: <strong>${metrics.AI}</strong>,
+    MI: <strong>${metrics.MI}%</strong>.
+    <br>${suggerimento}
+  `;
+}
+
+function buildDayRecord(label) {
+  const m = computeMetrics();
+  return {
+    giorno:   label || new Date().toLocaleDateString('it-IT', { weekday: 'short' }),
+    TST:      m.TST,
+    WASO:     m.WASO,
+    SE:       m.SE,
+    risvegli: m.risvegli,
+    DAW:      m.DAW,
+    MI:       m.MI,
+    AI:       m.AI
+  };
+}
+
+async function toggleMonitoring() {
+  if (!connected) return;
+
+  if (!monitoring) {
+    // Avvia
+    monitoring = true;
+    resetSleepSession();
+    updateMonitoringUI();
+  } else {
+    monitoring = false;
+    if (bleCharacteristic) {
+      try {
+        await bleCharacteristic.stopNotifications();
+      } catch(e) {
+        console.warn('Errore stop notifiche:', e);
+      }
+    }
+    updateMonitoringUI();
+  }
 }
