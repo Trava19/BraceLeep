@@ -265,16 +265,6 @@ async function toggleBracelet() {
     updateMonitoringUI();
   }
 
-  async function toggleMonitoring() {
-    if (!connected) return;
-
-    if (!monitoring) {
-      await sendCommand('start_monitoring');
-    } else {
-      await sendCommand('stop_monitoring');
-    }
-  }
-
   // ==================== UI UPDATES ====================
 
   function updateBatteryLevel(level) {
@@ -661,7 +651,7 @@ function saveSettings() {
 
 // ==================== CHIAMATE ALLE API ====================
 
-const API_BASE_URL = 'https://127.0.0.1:5000';
+const API_BASE_URL = 'http://127.0.0.1:5000';
 
 async function login() {
   const email = document.getElementById('email').value.trim();
@@ -1123,6 +1113,14 @@ function initAppWithData() {
   loadSettings();
 }
 
+function showDisconnectedState() {
+  const chip = document.getElementById('braceletChip');
+  if (chip) {
+    chip.innerHTML = "Braccialetto: <strong>Non connesso</strong>";
+    chip.classList.remove('glowing');
+  }
+}
+
 function toggleTrendDataset(pill, dsIdx) {
   // Trova il canvas associato al gruppo di pills del genitore
   const pillsGroup = pill.closest('.chart-pills');
@@ -1240,6 +1238,7 @@ function createAnalyticsCharts() {
         }
       }
     });
+    chartRegistry['analyticsSeChart'] = seChart;
   }
 
   // Bar WASO + risvegli
@@ -1287,6 +1286,7 @@ function createAnalyticsCharts() {
         }
       }
     });
+    chartRegistry['analyticsWasoChart'] = wasoChart;
   }
 }
 
@@ -1541,9 +1541,9 @@ function resetSleepSession() {
 
 function processSleepPacket(packet) {
   const now = new Date();
-  const { b, e, r } = packet;
+  const { b, r } = packet;
 
-  if (b === -1 && e === -1) {
+  if (b === -1) {
     console.warn('[SleepTracker] Pacchetto errore ignorato:', packet);
     return;
   }
@@ -1633,7 +1633,6 @@ function computeMetrics() {
 }
 
 function updateRealtimeUI(metrics, bpm, r) {
-  // Card real-time (sezione Home)
   const qualEl = document.getElementById('realtimeQuality');
   if (qualEl) qualEl.textContent = metrics.SE + '%';
 
@@ -1650,8 +1649,8 @@ function updateRealtimeUI(metrics, bpm, r) {
   const updEl = document.getElementById('lastUpdate');
   if (updEl) updEl.textContent = new Date().toLocaleTimeString('it-IT');
 
-  // Aggiorna i grafici e le statistiche analytics con i dati reali
   updateAnalyticsWithRealData(metrics);
+  updateChartsWithLiveData(metrics);
 
   console.log('[SleepTracker] Metriche aggiornate:', metrics);
 }
@@ -1716,6 +1715,78 @@ function updateInsightReal(metrics) {
     MI: <strong>${metrics.MI}%</strong>.
     <br>${suggerimento}
   `;
+}
+
+function updateChartsWithLiveData(metrics) {
+  const now = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+  if (sleepChart) {
+    sleepChart.data.labels.push(now);
+    sleepChart.data.datasets[0].data.push(metrics.SE);
+
+    const maxPoints = 60;
+    if (sleepChart.data.labels.length > maxPoints) {
+      sleepChart.data.labels.shift();
+      sleepChart.data.datasets[0].data.shift();
+    }
+
+    sleepChart.data.datasets[0].pointBackgroundColor = sleepChart.data.datasets[0].data.map(v =>
+      v >= 90 ? '#22c55e' : v >= 70 ? '#6366f1' : '#f59e0b'
+    );
+    sleepChart.update('none');
+    hideEmptyChartMessage('sleepLine');
+  }
+
+  if (trendChart) {
+    const todayLabel = new Date().toLocaleDateString('it-IT', { weekday: 'short' });
+    const idx = trendChart.data.labels.indexOf(todayLabel);
+    if (idx >= 0) {
+      trendChart.data.datasets[0].data[idx] = metrics.TST;
+      trendChart.data.datasets[2].data[idx] = metrics.SE;
+
+      const colors = trendChart.data.datasets[0].data.map(v =>
+        v >= 7.5 ? 'rgba(52,211,153,0.9)' : v >= 7 ? 'rgba(56,189,248,0.85)' : 'rgba(248,113,113,0.85)'
+      );
+      trendChart.data.datasets[0].backgroundColor = colors;
+      trendChart.data.datasets[2].pointBackgroundColor = trendChart.data.datasets[2].data.map(v =>
+        v >= 90 ? '#22c55e' : v >= 80 ? '#a78bfa' : '#f59e0b'
+      );
+      trendChart.update('none');
+    }
+    hideEmptyChartMessage('weekTrend');
+  }
+
+  const atChart = chartRegistry['analyticsWeekTrend'];
+  if (atChart) {
+    const todayLabel = new Date().toLocaleDateString('it-IT', { weekday: 'short' });
+    const idx = atChart.data.labels.indexOf(todayLabel);
+    if (idx >= 0) {
+      atChart.data.datasets[0].data[idx] = metrics.TST;
+      atChart.data.datasets[1].data[idx] = metrics.SE;
+      atChart.update('none');
+    }
+  }
+
+  const seC = chartRegistry['analyticsSeChart'] || seChart;
+  if (seC) {
+    const todayLabel = new Date().toLocaleDateString('it-IT', { weekday: 'short' });
+    const idx = seC.data.labels.indexOf(todayLabel);
+    if (idx >= 0) {
+      seC.data.datasets[0].data[idx] = metrics.SE;
+      seC.update('none');
+    }
+  }
+
+  const wC = chartRegistry['analyticsWasoChart'] || wasoChart;
+  if (wC) {
+    const todayLabel = new Date().toLocaleDateString('it-IT', { weekday: 'short' });
+    const idx = wC.data.labels.indexOf(todayLabel);
+    if (idx >= 0) {
+      wC.data.datasets[0].data[idx] = metrics.WASO;
+      wC.data.datasets[1].data[idx] = metrics.risvegli * 0.1;
+      wC.update('none');
+    }
+  }
 }
 
 function buildDayRecord(label) {
