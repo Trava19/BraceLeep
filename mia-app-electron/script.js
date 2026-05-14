@@ -3,30 +3,37 @@ document.getElementById('year').textContent = new Date().getFullYear();
 document.getElementById('year').textContent = new Date().getFullYear();
 
 // ==================== DATI CSV (embedded per test grafico) ====================
-// Originariamente i dati verrebbero dal server/braccialetto
-const CSV_DATA = [
-  { giorno: 'Lun', TST: 7.5, WASO: 0.6, SE: 88, risvegli: 3, DAW: 0.5, MI: 12, AI: 18 },
-  { giorno: 'Mar', TST: 6.8, WASO: 0.9, SE: 82, risvegli: 5, DAW: 0.7, MI: 18, AI: 25 },
-  { giorno: 'Mer', TST: 8.0, WASO: 0.4, SE: 92, risvegli: 2, DAW: 0.3, MI: 10, AI: 15 },
-  { giorno: 'Gio', TST: 7.2, WASO: 0.7, SE: 85, risvegli: 4, DAW: 0.6, MI: 14, AI: 20 },
-  { giorno: 'Ven', TST: 6.5, WASO: 1.1, SE: 78, risvegli: 6, DAW: 0.9, MI: 22, AI: 30 },
-  { giorno: 'Sab', TST: 7.9, WASO: 0.5, SE: 90, risvegli: 3, DAW: 0.4, MI: 11, AI: 16 },
-  { giorno: 'Dom', TST: 8.2, WASO: 0.3, SE: 94, risvegli: 1, DAW: 0.2, MI:  8, AI: 12 },
 
-  
+//
+let CSV_DATA = [
+  { giorno: 'Mer', TST: null, WASO: null, SE: null, risvegli: null, DAW: null, MI: null, AI: null },
+  { giorno: 'Mar', TST: null, WASO: null, SE: null, risvegli: null, DAW: null, MI: null, AI: null },
+  { giorno: 'Mer', TST: null, WASO: null, SE: null, risvegli: null, DAW: null, MI: null, AI: null },
+  { giorno: 'Gio', TST: null, WASO: null, SE: null, risvegli: null, DAW: null, MI: null, AI: null },
+  { giorno: 'Ven', TST: null, WASO: null, SE: null, risvegli: null, DAW: null, MI: null, AI: null },
+  { giorno: 'Sab', TST: null, WASO: null, SE: null, risvegli: null, DAW: null, MI: null, AI: null },
+  { giorno: 'Dom', TST: null, WASO: null, SE: null, risvegli: null, DAW: null, MI: null, AI: null }
 ];
 
 let seChart = null;
 let wasoChart = null;
 const chartRegistry = {};
 
-const LAST_NIGHT = CSV_DATA[6]; // Ultima notte = Domenica
+function calcolaUltimaNotte(){
+  for(let i = CSV_DATA.length - 1; i >= 0; i--){
+    if(CSV_DATA[i].TST !== null){
+      return CSV_DATA[i];
+    }
+  }
+  return null;
+}
 
-const AVG_TST  = CSV_DATA.reduce((s, d) => s + d.TST, 0) / CSV_DATA.length;
-const AVG_SE   = Math.round(CSV_DATA.reduce((s, d) => s + d.SE,  0) / CSV_DATA.length);
-const AVG_WASO = CSV_DATA.reduce((s, d) => s + d.WASO, 0) / CSV_DATA.length;
-const AVG_RISV = (CSV_DATA.reduce((s, d) => s + d.risvegli, 0) / CSV_DATA.length).toFixed(1);
-const QUALITY_SCORE = AVG_SE;
+let LAST_NIGHT = calcolaUltimaNotte(); // Ultima notte = Domenica
+let AVG_TST  = CSV_DATA.reduce((s, d) => s + d.TST, 0) / CSV_DATA.length;
+let AVG_SE   = Math.round(CSV_DATA.reduce((s, d) => s + d.SE,  0) / CSV_DATA.length);
+let AVG_WASO = CSV_DATA.reduce((s, d) => s + d.WASO, 0) / CSV_DATA.length;
+let AVG_RISV = (CSV_DATA.reduce((s, d) => s + d.risvegli, 0) / CSV_DATA.length).toFixed(1);
+let QUALITY_SCORE = AVG_SE;
 
   // Variabili globali
   let bleDevice = null;
@@ -621,39 +628,91 @@ async function toggleBracelet() {
 
   // ==================== GESTIONE IMPOSTAZIONI ====================
 
-function loadSettings() { // TODO: fallo giusto e non uesta merda ua
+
+(function() {
   const saved = localStorage.getItem('braceleep_settings');
   if (saved) {
     const settings = JSON.parse(saved);
-    document.getElementById('notificationsEnabled').checked = settings.notifications || false;
-    document.getElementById('darkMode').checked = settings.darkMode !== false;
-    document.getElementById('unitSystem').value = settings.unitSystem || 'metric';
-    document.getElementById('language').value = settings.language || 'it';
+    document.body.classList.toggle('light-mode', !settings.darkMode);
   }
+})();
+
+function applyTheme(isDark) {
+  document.body.classList.toggle('light-mode', !isDark);
+}
+
+function loadSettings() {
+  const defaults = {
+    notifications: false,
+    darkMode: true,
+    unitSystem: 'metric',
+    language: 'it'
+  };
+
+  const saved = localStorage.getItem('braceleep_settings');
+  const settings = saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+
+  document.getElementById('notificationsEnabled').checked = settings.notifications;
+  document.getElementById('darkMode').checked = settings.darkMode;
+  document.getElementById('unitSystem').value = settings.unitSystem;
+  document.getElementById('language').value = settings.language;
+
+  applyTheme(settings.darkMode);
+
+  document.getElementById('darkMode').addEventListener('change', (e) => {
+    applyTheme(e.target.checked);
+    const current = JSON.parse(localStorage.getItem('braceleep_settings') || '{}');
+    localStorage.setItem('braceleep_settings', JSON.stringify({ ...current, darkMode: e.target.checked }));
+  });
 }
 
 function saveSettings() {
-  const settings = {
-    notifications: document.getElementById('notificationsEnabled').checked,
-    darkMode: document.getElementById('darkMode').checked,
-    unitSystem: document.getElementById('unitSystem').value,
-    language: document.getElementById('language').value
-  };
-  
-  localStorage.setItem('braceleep_settings', JSON.stringify(settings));
-  
-  const successMsg = document.getElementById('settingsSuccess');
-  successMsg.style.display = 'block';
-  setTimeout(() => {
-    successMsg.style.display = 'none';
-  }, 3000);
-}
+    const darkMode = document.getElementById('darkMode').checked;
+    const notifications = document.getElementById('notificationsEnabled').checked;
+    const unitSystem = document.getElementById('unitSystem').value;
 
+    const oldSettings = JSON.parse(localStorage.getItem('braceleep_settings') || '{}');
+
+    localStorage.setItem('braceleep_settings', JSON.stringify({
+        darkMode,
+        notifications,
+        unitSystem
+    }));
+
+    applyTheme(darkMode);
+
+    if (oldSettings.unitSystem !== unitSystem) {
+        applyUnitSystem(unitSystem);
+    }
+
+    if (notifications) {
+        requestNotificationPermission();
+    }
+
+    const msg = document.getElementById('settingsSuccess');
+    msg.style.display = 'block';
+    setTimeout(() => msg.style.display = 'none', 3000);
+}
 // ==================== CHIAMATE ALLE API ====================
 
 const API_BASE_URL = 'http://127.0.0.1:5000';
+//'http://192.168.1.10:5000';  
+window.token = null;
+
+
+async function apiFetch(url, options = {}) {
+  return fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(window.token ? { "Authorization": `Bearer ${window.token}` } : {}),
+      ...(options.headers || {})
+    }
+  });
+}
 
 async function login() {
+
   const email = document.getElementById('email').value.trim();
   const pw = document.getElementById('pw').value;
 
@@ -663,36 +722,53 @@ async function login() {
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/login`, {
+
+    const res = await apiFetch('/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pw })
+      body: JSON.stringify({
+        email,
+        password: pw
+      })
     });
 
     const result = await res.json();
 
     if (result.success) {
+
+      // Token JWT
+      window.token = result.token;
+
       // Salva email utente
       window.loggedUserEmail = result.email;
 
-      // Aggiorna UI: nasconde login e mostra app
+      // Mostra app
       document.getElementById('loginBox').style.display = 'none';
       document.getElementById('appScreen').style.display = 'block';
 
-      // Aggiorna utente nella UI
+      // Username UI
       document.getElementById('userName').textContent = result.email;
 
-      initAppWithData(result.profile);
+      // Inizializza app
+      initAppWithData();
 
+      // Carica profilo
+      await caricaProfilo();
+
+      // Successo
       showSuccess('Accesso effettuato!');
-    } else {
-      showError(result.message);
-    }
-  } catch (err) {
-    showError('Errore di connessione al server');
-  }
 
-  caricaProfilo();
+    } else {
+
+      showError(result.message);
+
+    }
+
+  } catch (err) {
+
+    console.error(err);
+    showError('Errore di connessione al server');
+
+  }
 }
 
 // 
@@ -759,15 +835,13 @@ async function register() {
 
 
   try {
-    const res = await fetch(`${API_BASE_URL}/register`, {
+    const res =await apiFetch('/register', {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: email,
-        nome: firstName,      // <-- cambiato da first_name
-        cognome: lastName,    // <-- cambiato da last_name
-        password: password
+        email,
+        nome: firstName,
+        cognome: lastName,
+        password
       })
     });
 
@@ -789,6 +863,109 @@ async function register() {
 }
 
 
+async function calcolaSonno() {
+
+  try {
+
+    const res = await apiFetch('/calcolaSonno', {
+      method: 'POST'
+    });
+
+    const result = await res.json();
+
+    if (!result.success) {
+      showError(result.message);
+      return null;
+    }
+
+    // aggiorna CSV globale
+    CSV_DATA = result.data.map(giorno => ({
+      giorno: giorno.giorno,
+      TST: giorno.TST !== null ? Number(giorno.TST) : null,
+      WASO: giorno.WASO !== null ? Number(giorno.WASO) : null,
+      SE: giorno.SE !== null ? Number(giorno.SE) : null,
+      risvegli: giorno.risvegli !== null ? Number(giorno.risvegli) : null,
+      DAW: giorno.DAW !== null ? Number(giorno.DAW) : null,
+      MI: giorno.MI !== null ? Number(giorno.MI) : null,
+      AI: giorno.AI !== null ? Number(giorno.AI) : null
+    }));
+
+    // aggiorna stats globali (solo giorni con dati validi)
+    LAST_NIGHT = calcolaUltimaNotte();
+
+    const validTST = CSV_DATA.filter(d => d.TST !== null);
+    const validSE = CSV_DATA.filter(d => d.SE !== null);
+    const validWASO = CSV_DATA.filter(d => d.WASO !== null);
+    const validRisv = CSV_DATA.filter(d => d.risvegli !== null);
+
+    AVG_TST = validTST.length > 0
+      ? validTST.reduce((s,d)=>s+d.TST,0) / validTST.length
+      : 0;
+
+    AVG_SE = validSE.length > 0
+      ? Math.round(validSE.reduce((s,d)=>s+d.SE,0) / validSE.length)
+      : 0;
+
+    AVG_WASO = validWASO.length > 0
+      ? validWASO.reduce((s,d)=>s+d.WASO,0) / validWASO.length
+      : 0;
+
+    AVG_RISV = validRisv.length > 0
+      ? (validRisv.reduce((s,d)=>s+d.risvegli,0) / validRisv.length).toFixed(1)
+      : '0';
+
+    QUALITY_SCORE = AVG_SE;
+
+    // refresh grafici
+    createLine();
+    createTrend();
+    createAnalyticsCharts();
+
+    // refresh analytics
+    if (LAST_NIGHT) {
+      updateSleepStages(LAST_NIGHT);
+    }
+
+    updateInsight();
+
+    console.log('Dati sonno caricati e grafici aggiornati');
+
+    return CSV_DATA;
+
+  } catch (err) {
+
+    console.error(err);
+
+    showError('Errore di connessione al server');
+
+    return null;
+  }
+}
+
+
+function refreshStats() {
+
+  LAST_NIGHT = calcolaUltimaNotte();
+
+  AVG_TST =
+    CSV_DATA.reduce((s,d)=>s+d.TST,0) / CSV_DATA.length;
+
+  AVG_SE =
+    Math.round(
+      CSV_DATA.reduce((s,d)=>s+d.SE,0) / CSV_DATA.length
+    );
+
+  AVG_WASO =
+    CSV_DATA.reduce((s,d)=>s+d.WASO,0) / CSV_DATA.length;
+
+  AVG_RISV =
+    (
+      CSV_DATA.reduce((s,d)=>s+d.risvegli,0) /
+      CSV_DATA.length
+    ).toFixed(1);
+
+  QUALITY_SCORE = AVG_SE;
+}
 
 async function changePassword() {
   const oldPw = document.getElementById('oldPw').value;
@@ -808,13 +985,11 @@ async function changePassword() {
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/change-password`, {
+    const res = await apiFetch('/change-password', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
-        oldPw: oldPw,
-        newPw: newPw
+        oldPw,
+        newPw
       })
     });
 
@@ -905,10 +1080,8 @@ async function salvaProfilo() {
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/changeProfile`, {
+    const res = await apiFetch('/changeProfile', {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nome_completo: fullName,
         eta: age,
@@ -946,16 +1119,12 @@ async function caricaProfilo(){
   successBox.style.display = 'none';
 
   try {
-    const res = await fetch(`${API_BASE_URL}/caricaProfilo`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: userEmail
-      })
-    });
+     const res = await apiFetch('/caricaProfilo', {
+        method: 'POST'
+      });
 
     const result = await res.json();
+    console.log("result" + result)
 
     if (result.success) {
       document.getElementById('fullName').value = result.profile.nome_completo;
@@ -990,10 +1159,8 @@ async function clearAllData() {
     successBox.style.display = 'none';
 
     try{
-      const res = await fetch(`${API_BASE_URL}/clearAllData`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await apiFetch('/clearAllData', {
+        method: 'GET'
       });
 
       const result = await res.json();
@@ -1014,31 +1181,16 @@ async function clearAllData() {
 
 
  async function logout() {
+  if (confirm('Sei sicuro di voler uscire?')) {
 
-    if (confirm('Sei sicuro di voler uscire?')) {
-      // Ricarica la pagina per resettare lo stato
-      try{
-        const res = await fetch(`${API_BASE_URL}/logout`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
+    await apiFetch('/logout', {
+      method: 'GET'
+    });
 
-      const result = await res.json();
-
-      if (result.success) {
-        
-        console.log('Logout effettuato');
-        location.reload();
-      }else{
-
-        console.log('Errore durante il logout:', result.message);
-      }
-    }catch(err){
-      console.log('Errore durante il logout:', err);
-    }
-    }
+    window.token = null;
+    location.reload();
   }
+}
 
   function ricarica(){
     location.reload();
@@ -1150,8 +1302,17 @@ function createAnalyticsCharts() {
   // ── Trend settimanale analytics (bar ore + linea SE%) ──
   const ctxATrend = document.getElementById('analyticsWeekTrend');
   if (ctxATrend) {
-    const colors = CSV_DATA.map(d => d.TST >= 7.5 ? 'rgba(52,211,153,0.9)' : d.TST >= 7 ? 'rgba(56,189,248,0.85)' : 'rgba(248,113,113,0.85)');
-    new Chart(ctxATrend, {
+    const existingAT = Chart.getChart(ctxATrend);
+    if (existingAT) existingAT.destroy();
+    const colors = CSV_DATA.map(d =>
+      d.TST === null ? 'rgba(148,163,184,0.3)' :
+      d.TST >= 7.5 ? 'rgba(52,211,153,0.9)' : d.TST >= 7 ? 'rgba(56,189,248,0.85)' : 'rgba(248,113,113,0.85)'
+    );
+    const seColors = CSV_DATA.map(d =>
+      d.SE === null ? 'rgba(148,163,184,0.3)' :
+      d.SE >= 90 ? '#22c55e' : d.SE >= 80 ? '#a78bfa' : '#f59e0b'
+    );
+    const newChart = new Chart(ctxATrend, {
       type: 'bar',
       data: {
         labels: CSV_DATA.map(d => d.giorno),
@@ -1168,7 +1329,7 @@ function createAnalyticsCharts() {
             type: 'line',
             borderColor: '#a78bfa', borderWidth: 2.5,
             pointRadius: 4,
-            pointBackgroundColor: CSV_DATA.map(d => d.SE >= 90 ? '#22c55e' : d.SE >= 80 ? '#a78bfa' : '#f59e0b'),
+            pointBackgroundColor: seColors,
             pointBorderWidth: 0,
             fill: false, tension: 0.4, yAxisID: 'ySE2'
           }
@@ -1184,28 +1345,33 @@ function createAnalyticsCharts() {
             borderWidth: 1, padding: 10,
             filter: item => item.datasetIndex !== 1,
             callbacks: {
-              label: ctx => ctx.datasetIndex === 0
-                ? `  Ore: ${hm(ctx.parsed.y)}`
-                : `  Efficienza: ${ctx.parsed.y}%`
+              label: ctx => {
+                if (ctx.datasetIndex === 0) {
+                  const v = ctx.parsed.y;
+                  return v === null ? `  Ore: N/D` : `  Ore: ${hm(v)}`;
+                }
+                const v = ctx.parsed.y;
+                return v === null ? `  Efficienza: N/D` : `  Efficienza: ${v}%`;
+              }
             }
           }
         },
         scales: {
           x: { grid: { display: false }, ticks: { color: 'rgba(226,232,240,0.7)', font: { size: 11 } } },
           yH: {
-            type: 'linear', position: 'left', min: 5, max: 10,
+            type: 'linear', position: 'left', beginAtZero: true, min: 0, max: 10,
             grid: { color: 'rgba(148,163,184,0.12)', drawBorder: false },
             ticks: { color: 'rgba(52,211,153,0.8)', callback: v => v + 'h', stepSize: 1 }
           },
           ySE2: {
-            type: 'linear', position: 'right', min: 60, max: 100,
+            type: 'linear', position: 'right', beginAtZero: true, min: 0, max: 100,
             grid: { display: false },
             ticks: { color: 'rgba(167,139,250,0.8)', callback: v => v + '%' }
           }
         }
       }
     });
-    chartRegistry['analyticsWeekTrend'] = Chart.getChart(ctxATrend);
+    chartRegistry['analyticsWeekTrend'] = newChart;
   }
 
   // Radar efficienza settimanale
@@ -1229,7 +1395,7 @@ function createAnalyticsCharts() {
         plugins: { legend: { display: false } },
         scales: {
           r: {
-            min: 60, max: 100,
+            min: 0, max: 100,
             grid: { color: 'rgba(148,163,184,0.15)' },
             angleLines: { color: 'rgba(148,163,184,0.15)' },
             pointLabels: { color: 'rgba(226,232,240,0.8)', font: { size: 12 } },
@@ -1253,12 +1419,15 @@ function createAnalyticsCharts() {
           {
             label: 'WASO (ore svegli)',
             data: CSV_DATA.map(d => d.WASO),
-            backgroundColor: CSV_DATA.map(d => d.WASO <= 0.4 ? 'rgba(52,211,153,0.8)' : d.WASO <= 0.7 ? 'rgba(251,191,36,0.8)' : 'rgba(248,113,113,0.8)'),
+            backgroundColor: CSV_DATA.map(d =>
+              d.WASO === null ? 'rgba(148,163,184,0.3)' :
+              d.WASO <= 0.4 ? 'rgba(52,211,153,0.8)' : d.WASO <= 0.7 ? 'rgba(251,191,36,0.8)' : 'rgba(248,113,113,0.8)'
+            ),
             borderRadius: 6, borderSkipped: false
           },
           {
             label: 'N° Risvegli (÷10)',
-            data: CSV_DATA.map(d => d.risvegli * 0.1),
+            data: CSV_DATA.map(d => d.risvegli !== null ? d.risvegli * 0.1 : null),
             backgroundColor: 'rgba(168,85,247,0.5)',
             borderRadius: 4, borderSkipped: false
           }
@@ -1293,7 +1462,14 @@ function createAnalyticsCharts() {
 function createTrend() {
   const el = document.getElementById('weekTrend');
   if (!el) return;
-  const colors = CSV_DATA.map(d => d.TST >= 7.5 ? 'rgba(52,211,153,0.9)' : d.TST >= 7 ? 'rgba(56,189,248,0.85)' : 'rgba(248,113,113,0.85)');
+  const colors = CSV_DATA.map(d =>
+    d.TST === null ? 'rgba(148,163,184,0.3)' :
+    d.TST >= 7.5 ? 'rgba(52,211,153,0.9)' : d.TST >= 7 ? 'rgba(56,189,248,0.85)' : 'rgba(248,113,113,0.85)'
+  );
+  const seColors = CSV_DATA.map(d =>
+    d.SE === null ? 'rgba(148,163,184,0.3)' :
+    d.SE >= 90 ? '#22c55e' : d.SE >= 80 ? '#a78bfa' : '#f59e0b'
+  );
 
   if (trendChart) trendChart.destroy();
   trendChart = new Chart(el, {
@@ -1324,7 +1500,7 @@ function createTrend() {
           borderColor: '#a78bfa',
           borderWidth: 2,
           pointRadius: 4,
-          pointBackgroundColor: CSV_DATA.map(d => d.SE >= 90 ? '#22c55e' : d.SE >= 80 ? '#a78bfa' : '#f59e0b'),
+          pointBackgroundColor: seColors,
           pointBorderWidth: 0,
           fill: false,
           tension: 0.4,
@@ -1343,9 +1519,13 @@ function createTrend() {
           filter: item => item.datasetIndex !== 1,
           callbacks: {
             label: ctx => {
-              if (ctx.datasetIndex === 0) return `  Ore sonno: ${hm(ctx.parsed.y)}`;
+              if (ctx.datasetIndex === 0) {
+                const v = ctx.parsed.y;
+                return v === null ? `  Ore sonno: N/D` : `  Ore sonno: ${hm(v)}`;
+              }
               if (ctx.datasetIndex === 1) return null;
-              return `  Efficienza: ${ctx.parsed.y}%`;
+              const v = ctx.parsed.y;
+              return v === null ? `  Efficienza: N/D` : `  Efficienza: ${v}%`;
             }
           }
         }
@@ -1354,13 +1534,13 @@ function createTrend() {
         x: { grid: { display: false }, ticks: { color: 'rgba(226,232,240,0.7)', font: { size: 11 } } },
         yHours: {
           type: 'linear', position: 'left',
-          beginAtZero: false, min: 5, max: 10,
+          beginAtZero: true, min: 0, max: 10,
           grid: { color: 'rgba(148,163,184,0.15)', drawBorder: false },
           ticks: { color: 'rgba(52,211,153,0.8)', stepSize: 1, callback: v => v + 'h' }
         },
         ySE: {
           type: 'linear', position: 'right',
-          min: 60, max: 100,
+          min: 0, max: 100,
           grid: { display: false },
           ticks: { color: 'rgba(167,139,250,0.8)', font: { size: 11 }, callback: v => v + '%' }
         }
@@ -1372,47 +1552,71 @@ function createTrend() {
 }
 
 function createLine() {
+
+  if (!LAST_NIGHT) {
+    console.warn('Nessun dato disponibile per il grafico');
+    return;
+  }
+
   const canvas = document.getElementById('sleepLine');
+
   if (!canvas) return;
+
   const ctx = canvas.getContext('2d');
+
   const gradient = ctx.createLinearGradient(0, 0, 0, 220);
+
   gradient.addColorStop(0, 'rgba(129,140,248,0.45)');
   gradient.addColorStop(1, 'rgba(15,23,42,0)');
 
-  // Genera profilo orario simulato basato sull'ultima notte (LAST_NIGHT)
-  // Usa SE, WASO, MI per dare forma realistica alla curva
-  // Struttura tipica: addormentamento → sonno leggero → profondo → REM → risveglio
   const night = LAST_NIGHT;
-  const hours = ['23:00','00:00','01:00','02:00','03:00','04:00','05:00','06:00','07:00'];
-  // Qualità simulata ora per ora basata sui parametri reali della notte
-  // Valori scalati su base SE, depressi da WASO/MI
-  const baseSE = night.SE;
-  const wasoDepression = night.WASO * 15;   // più WASO → curve più basse
-  const miNoise = night.MI * 0.3;           // MI aggiunge variabilità
-  const profile = [
-    Math.round(baseSE * 0.55 - miNoise),          // 23:00 addormentamento
-    Math.round(baseSE * 0.72),                     // 00:00 N1/N2
-    Math.round(baseSE * 0.92),                     // 01:00 sonno profondo
-    Math.round(baseSE * 0.98),                     // 02:00 picco profondo
-    Math.round(baseSE * 0.85 - wasoDepression/2),  // 03:00 primo REM
-    Math.round(baseSE * 0.78 - wasoDepression/3),  // 04:00 REM/leggero
-    Math.round(baseSE * 0.88),                     // 05:00 secondo ciclo profondo
-    Math.round(baseSE * 0.75 - miNoise/2),         // 06:00 sonno leggero mattino
-    Math.round(baseSE * 0.45),                     // 07:00 risveglio
-  ].map(v => Math.max(30, Math.min(100, v)));
 
-  if (sleepChart) sleepChart.destroy();
+  const hours = [
+    '23:00',
+    '00:00',
+    '01:00',
+    '02:00',
+    '03:00',
+    '04:00',
+    '05:00',
+    '06:00',
+    '07:00'
+  ];
+
+  const baseSE = night.SE;
+
+  const wasoDepression = night.WASO * 15;
+  const miNoise = night.MI * 0.3;
+
+  const profile = [
+    Math.round(baseSE * 0.55 - miNoise),
+    Math.round(baseSE * 0.72),
+    Math.round(baseSE * 0.92),
+    Math.round(baseSE * 0.98),
+    Math.round(baseSE * 0.85 - wasoDepression / 2),
+    Math.round(baseSE * 0.78 - wasoDepression / 3),
+    Math.round(baseSE * 0.88),
+    Math.round(baseSE * 0.75 - miNoise / 2),
+    Math.round(baseSE * 0.45),
+  ].map(v => Math.max(0, Math.min(100, v)));
+
+  if (sleepChart) {
+    sleepChart.destroy();
+  }
+
   sleepChart = new Chart(ctx, {
     type: 'line',
+
     data: {
       labels: hours,
+
       datasets: [{
         label: 'Qualità sonno (%)',
         data: profile,
         tension: 0.5,
         pointRadius: 4,
         pointHoverRadius: 6,
-        pointBackgroundColor: profile.map(v => v >= 90 ? '#22c55e' : v >= 70 ? '#6366f1' : '#f59e0b'),
+        pointBackgroundColor: '#6366f1',
         pointBorderWidth: 0,
         fill: true,
         backgroundColor: gradient,
@@ -1420,36 +1624,32 @@ function createLine() {
         borderWidth: 2.5
       }]
     },
+
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true,
+      maintainAspectRatio: false,
+
       plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(148,163,184,0.4)',
-          borderWidth: 1, padding: 10, displayColors: false,
-          callbacks: {
-            title: items => 'Ora ' + items[0].label,
-            label: ctx => {
-              const v = ctx.parsed.y;
-              const fase = v >= 90 ? '😴 Sonno profondo' : v >= 70 ? '🌙 Sonno normale' : v >= 50 ? '💤 Sonno leggero' : '👁️ Risveglio';
-              return `${fase} — ${v}%`;
-            }
-          }
+        legend: {
+          display: false
         }
       },
+
       scales: {
+
         y: {
-          display: true, min: 0, max: 100,
-          grid: { color: 'rgba(148,163,184,0.08)', drawBorder: false },
-          ticks: { color: 'rgba(148,163,184,0.7)', font: { size: 10 }, callback: v => v + '%' }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { color: 'rgba(226,232,240,0.7)', font: { size: 10 } }
+          min: 0,
+          max: 100,
+
+          ticks: {
+            callback: v => v + '%'
+          }
         }
+
       }
     }
   });
+
   hideEmptyChartMessage('sleepLine');
 }
 
@@ -1465,6 +1665,7 @@ async function riceviDati() {
   const MY_CHAR_UUID    = '12345678-1234-1234-1234-123456789abd';
 
   try {
+    log('Richiesta dispositivo BraceLeep...');
     const device = await navigator.bluetooth.requestDevice({
       filters: [{ name: 'BraceLeep' }],
       optionalServices: [MY_SERVICE_UUID]
@@ -1472,13 +1673,29 @@ async function riceviDati() {
 
     bleDevice = device;
     bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+    log('Dispositivo selezionato: ' + device.name);
 
+    log('Connessione GATT...');
     const server = await device.gatt.connect();
+    log('GATT connesso: ' + server.connected);
+
+    // Pausa per stabilizzare la connessione
+    await new Promise(r => setTimeout(r, 500));
+
+    if (!device.gatt.connected) {
+      throw new Error('Dispositivo disconnesso subito dopo la connessione');
+    }
+
+    log('Recupero servizio...');
     const service = await server.getPrimaryService(MY_SERVICE_UUID);
+    log('Servizio trovato');
+
+    log('Recupero characteristic...');
     bleCharacteristic = await service.getCharacteristic(MY_CHAR_UUID);
+    log('Characteristic trovato');
 
     bleCharacteristic.addEventListener('characteristicvaluechanged', event => {
-      if (!monitoring) return; // ignora dati se monitoraggio non attivo
+      if (!monitoring) return;
       const raw = event.target.value;
       const text = new TextDecoder().decode(raw);
       try {
@@ -1489,7 +1706,9 @@ async function riceviDati() {
       }
     });
 
+    log('Avvio notifiche...');
     await bleCharacteristic.startNotifications();
+    log('Notifiche attive');
 
     connected = true;
     document.getElementById('braceletChip').innerHTML = "Braccialetto: <strong>Connesso</strong>";
@@ -1499,13 +1718,13 @@ async function riceviDati() {
     document.getElementById('monitorBtn').disabled = false;
 
   } catch (error) {
-    console.error('Errore:', error);
+    console.error('[BLE] Errore connessione:', error);
     document.getElementById('syncStatus').textContent = 'Errore: ' + error.message;
   }
 }
 
 
-const SAMPLE_INTERVAL_SEC = 30;
+const SAMPLE_INTERVAL_SEC = 10;
 
 const sleepSession = {
   startTime:       null,   
@@ -1539,11 +1758,11 @@ function resetSleepSession() {
   console.log('[SleepTracker] Sessione resettata');
 }
 
-function processSleepPacket(packet) {
-  const now = new Date();
-  const { b, r } = packet;
+async function processSleepPacket(packet) {
+   const now = new Date();
+  const { b, e, r } = packet;
 
-  if (b === -1) {
+  if (b === -1 && e === -1) {
     console.warn('[SleepTracker] Pacchetto errore ignorato:', packet);
     return;
   }
@@ -1587,48 +1806,82 @@ function processSleepPacket(packet) {
 
   const metrics = computeMetrics();
   updateRealtimeUI(metrics, b, r);
+
+  try {
+    const res = await apiFetch('/mandaBR', {
+      method: 'POST',
+      body: JSON.stringify({ b, r })
+    });
+
+    const result = await res.json();
+    console.log(result);
+
+  } catch (err) {
+    console.log('Errore di connessione al server', 'error');
+  }
 }
 
 function computeMetrics() {
   const s = sleepSession;
 
+  // TST: tempo totale effettivamente dormito (solo campioni con r === 0)
   const TST_min  = s.sleepSamples  * (SAMPLE_INTERVAL_SEC / 60);
   const TST_h    = TST_min / 60;
 
-  const WASO_min = s.wakeSamples   * (SAMPLE_INTERVAL_SEC / 60);
-  const WASO_h   = WASO_min / 60;
-
+  // TIB: tempo totale trascorso a letto (tutti i campioni)
   const TIB_min  = s.totalSamples  * (SAMPLE_INTERVAL_SEC / 60);
   const TIB_h    = TIB_min / 60;
 
+  // SE: Sleep Efficiency = TST / TIB
   const SE = TIB_min > 0 ? Math.round((TST_min / TIB_min) * 100) : 0;
 
   const risvegli = s.arousalCount;
 
+  // AI: Arousal Index = risvegli per ora di sonno
   const AI = TST_h > 0 ? Math.round((risvegli / TST_h) * 10) / 10 : 0;
 
+  // MI: Movement Index = % di campioni con battito anomalo
   const MI = s.totalSamples > 0
     ? Math.round((s.badHRSamples / s.totalSamples) * 100)
     : 0;
 
-  let totalWakeSec = s.wakeBlocks.reduce((acc, b) => acc + b.durationSec, 0);
-  if (s.currentWakeStart) {
-    totalWakeSec += (new Date() - s.currentWakeStart) / 1000;
+  // WASO e DAW calcolati dai blocchi di veglia reali (wall-clock)
+  // Escludi il primo blocco di veglia se inizia prima del primo campione di sonno
+  // (quello è sleep onset latency, non WASO)
+  let wasoSec = 0;
+  let dawSec  = 0;
+
+  for (const block of s.wakeBlocks) {
+    // Un blocco conta come WASO solo se c'è stato almeno un campione di sonno prima
+    if (s.sleepSamples > 0) {
+      wasoSec += block.durationSec;
+    }
+    dawSec += block.durationSec;
   }
-  const DAW_h = totalWakeSec / 3600;
+
+  // Se siamo attualmente svegli, aggiungi il tempo parziale del blocco in corso
+  if (s.currentWakeStart && s.sleepSamples > 0) {
+    wasoSec += (new Date() - s.currentWakeStart) / 1000;
+  }
+  if (s.currentWakeStart) {
+    dawSec += (new Date() - s.currentWakeStart) / 1000;
+  }
+
+  const WASO_h = wasoSec / 3600;
+  const DAW_h  = dawSec / 3600;
 
   return {
-    TST:       Math.round(TST_h * 100) / 100,   // ore (2 decimali)
+    TST:       Math.round(TST_h * 100) / 100,
     WASO:      Math.round(WASO_h * 100) / 100,
-    SE,                                           // intero %
-    risvegli,                                     // intero
+    SE,
+    risvegli,
     DAW:       Math.round(DAW_h * 100) / 100,
-    MI,                                           // intero %
-    AI:        Math.round(AI * 10) / 10,          // 1 decimale
+    MI,
+    AI:        Math.round(AI * 10) / 10,
     TIB:       Math.round(TIB_h * 100) / 100,
     TIB_min,
     TST_min,
-    WASO_min
+    WASO_min:  Math.round((wasoSec / 60) * 100) / 100
   };
 }
 
@@ -1650,7 +1903,7 @@ function updateRealtimeUI(metrics, bpm, r) {
   if (updEl) updEl.textContent = new Date().toLocaleTimeString('it-IT');
 
   updateAnalyticsWithRealData(metrics);
-  updateChartsWithLiveData(metrics);
+  //updateChartsWithLiveData(metrics);
 
   console.log('[SleepTracker] Metriche aggiornate:', metrics);
 }
