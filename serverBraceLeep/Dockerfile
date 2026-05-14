@@ -8,6 +8,9 @@ RUN pip install --no-cache-dir \
     flask \
     mysql-connector-python \
     bcrypt \
-    flask-cors
+    flask-cors \
+    pyjwt
+
+EXPOSE 5000
 
 CMD ["python", "main.py"]
