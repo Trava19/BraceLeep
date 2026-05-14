@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: mariadb:latest
@@ -5,7 +7,7 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: braceleep
+      MYSQL_DATABASE: braccialetto_sonno
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     ports:
@@ -15,7 +17,6 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      start_period: 10s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -40,12 +41,12 @@ services:
       - "5000:5000"
     depends_on:
       db:
-        condition: service_healthy   # <-- aspetta che il DB sia davvero pronto
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_USER: user
       DB_PASSWORD: password
-      DB_NAME: braceleep
+      DB_NAME: braccialetto_sonno
 
 volumes:
   db_data:
